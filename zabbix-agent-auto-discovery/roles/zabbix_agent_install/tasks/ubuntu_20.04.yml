@@ -1,0 +1,22 @@
+ - name: ------- remove ansible agent -----------------  
+   apt:
+     name: zabbix-agent
+     state: absent
+   tags: [ install,add_remote_command ]
+ - name: ------remove all sources.list.d
+   shell: rm -rf /etc/apt/sources.list.d/*
+   tags: [ install ]
+   
+ - name: ---- Install Zabbix-Agent On Ubuntu 20 ----
+   apt:
+     name: zabbix-agent
+     state: latest
+     update_cache: yes
+   tags: [ install,agent_install ]
+
+ - name: ---------- copy config file ------------------
+   template: 
+    src:  source.list.j2 
+    dest: /etc/apt/sources.list
+   tags: [ install,agent_install ]
+

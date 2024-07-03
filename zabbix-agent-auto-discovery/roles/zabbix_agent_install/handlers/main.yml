@@ -1,0 +1,16 @@
+ - name: zabbix_service_start
+   service:
+     name: "{{ item.name }}"
+     enabled: "{{ item.status }}"
+     masked: no
+     state: "{{ item.state }}"
+   with_items:
+     - "{{ name: zabbix-agent2 ,status: no ,state: stopped }}"
+     - "{{ name: zabbix-agent ,status: yes ,state: started }}"
+   ignore_errors: yes 
+
+ - name: agent_restart
+   service:
+     name: zabbix-agent
+     state: restarted
+   ignore_errors: yes 

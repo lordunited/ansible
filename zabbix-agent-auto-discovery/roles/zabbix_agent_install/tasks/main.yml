@@ -1,0 +1,71 @@
+# - name: cehck zabbix-agent process
+#   shell: ps -ef | grep -i zabbix-agent | grep -iv grep
+#   register: zabbixagent
+#   tags: [ install ]
+
+# - name: show registre
+#   debug:
+#    msg:  "{{ zabbixagent  }}"
+#   tags: [ install ]
+    
+# - name: stop playobook on meta
+#   meta: end_play
+#   when: zabbixagent.rc == 0
+#   tags: [ install ]
+
+ - name: include centos 7 
+   include_tasks: 
+     file: centos_7.yml
+   when: ansible_distribution == 'CentOS' and ansible_distribution_major_version   == '7'
+   tags: [ install ]
+
+ - name: include centos 8
+   include_tasks: 
+     file: centos_8.yml
+   when: ansible_distribution == 'CentOS' and ansible_distribution_major_version   == '8'
+   tags: [ install ]  
+
+ - name: include ubuntu bionic
+   include_tasks: 
+     file: ubuntu_18.04.yml
+   when: ansible_distribution_release == 'bionic'
+   tags: [ install ]
+
+ - name: include ubuntu focal
+   include_tasks: 
+     file: ubuntu_20.04.yml
+   when: ansible_distribution_release == 'focal'
+   tags: [ install ]
+   
+ - name: include ubuntu jammy
+   include_tasks: 
+     file: ubuntu_22.04.yml
+   when: ansible_distribution_release == 'jammy'
+   tags: [ install ]
+  
+
+
+ - name: ---------- copy config file ------------------
+   template: 
+    src:  zabbix_agentd.conf.j2 
+    dest: /etc/zabbix/zabbix_agentd.conf
+   notify: zabbix_service_start
+   tags: [ agent_install,config,centos]
+   tags: [ install ]
+
+ - name: ---- Start Service ----
+   systemd: state=restarted name=zabbix-agent
+   tags: [ agent_install_restarted ]
+   tags: [ install ]
+
+ - name: ----enable remote command---------
+   lineinfile: 
+     path: /etc/zabbix/zabbix_agentd.conf
+     line: "{{ item }}"
+     insertbefore: BOF
+   with_items:
+     - "EnableRemoteCommands=1"
+     - "LogRemoteCommands=1"
+   notify: agent_restart 
+   tags: [ add_remote_command ]
+

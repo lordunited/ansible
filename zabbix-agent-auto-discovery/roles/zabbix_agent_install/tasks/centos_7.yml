@@ -1,0 +1,19 @@
+ - name: ------remove all sources.list.d 7 ------------
+   shell: rm -rf /etc/yum.repos.d/* 
+   tags: [ install ]
+
+
+
+ - name: ---- Install Zabbix-Agent CentOS RPM File 7 ----
+   yum:
+     name: "{{ centos_link }}"
+     validate_certs: false
+   tags: [ install ]
+   
+ - name: ---- Install Zabbix-Agent On CentOS 7 ----
+   yum:
+     name: zabbix-agent
+     enablerepo: zabbix
+     update_cache: true
+     state: latest
+   tags: [ install ]
