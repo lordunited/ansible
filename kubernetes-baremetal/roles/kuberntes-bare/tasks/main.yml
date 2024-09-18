@@ -1,0 +1,135 @@
+- name: ------ "Hello this MY journy in installation kubernetes hardway" ------
+  debug:
+    msg: "This is Kubernetes installation 1.30.0"
+
+- name: create keyring installation 
+  shell: install -m 0755 -d /etc/apt/keyrings
+  tags: [prepare]
+
+- name: ------ download gpg docker --------
+  get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: 0664
+  tags: [prepare]
+
+- name: ------- configure apt repositories --------
+  shell: echo ""deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null "
+  tags: [prepare]
+
+- name: ----- install containerd ---------
+  apt: 
+    name: containerd.io
+    state: present
+  tags: [prepare]
+
+- name: ------ configure containerd --------
+  shell: containerd config default | tee /etc/containerd/config.toml
+
+- name: ------ set cgroup on containerd -----
+  replace:
+      path: /etc/containerd/config.toml
+      regexp: 'SystemdCgroup = false'  # The text you want to replace (regex pattern)
+      replace: 'SystemdCgroup = true'  # The new text to insert
+  notify: restart_containerd
+  tags: [ prepare ]
+- name: --------- Append Containerd kernel modules ---------
+  lineinfile:
+    path: /etc/modules-load.d/containerd.conf
+    line: "{{ item }}"  # Loop through each item (word) and append it
+    create: yes         # Create the file if it doesn't exist
+    insertafter: EOF    # Append each word at the end of the file
+  with_items:
+    - "overlay"
+    - "br_netfilter"
+  tags: [ prepare ]
+- name: --------- Update kernel network settings to allow traffic to be forwarded --------
+  lineinfile:
+    path: /etc/sysctl.d/kubernetes.conf
+    line: "{{ item }}"  # Loop through each item (word) and append it
+    create: yes         # Create the file if it doesn't exist
+    insertafter: EOF    # Append each word at the end of the file
+  with_items:
+    - "net.bridge.bridge-nf-call-ip6tables = 1"
+    - "net.bridge.bridge-nf-call-iptables = 1"
+    - "net.ipv4.ip_forward = 1"
+  tags: [ prepare ]
+
+
+- name: -------- Load modules for kubernetes -----------
+  shell: modeprobe "{{ item  }}"
+  with_items:
+  - modprobe overlay
+  - modprobe br_netfilter
+  tags: [ prepare ]
+
+- name: ------  Load repositories for kubernetes ----------- 
+  get_url: 
+   url: {{ release_kubernetes }}
+   dest: /tmp
+   mode: '0644'
+  tags: [ install ]
+
+- name: ------ Load repositories for kubernetes ------------
+  shell: gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/kubernetes-release.key
+  tags: [ install ]
+
+- name: --------- Clean up temporary key file ---------------
+  file:
+    path: /tmp/kubernetes-release.key
+    state: absent
+  tags: [ install ]
+
+- name: -------- Load repositories for kubernetes ---------------
+  shell: "echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] {{ gpg_apt }} /' | tee /etc/apt/sources.list.d/kubernetes.list"
+  tags: [ install ]
+
+- name: ----------install kubelet, kubeadm , kubectl--------------
+  apt:
+    name: 
+    state: {{ item  }}
+    update_cache: yes
+  with_items: 
+    - kubelet=1.30.3-1.1
+    - kubeadm=1.30.3-1.1
+    - kubectl=1.30.3-1.1]]
+  notify: restart_kubelet
+  tags: [ install ]
+
+
+- name: ---------fetch crictl version 
+  shell: CRICTL_ARCH=$(dpkg --print-architecture)
+  tags: [ install ]
+
+- name: ---------fetch crictl version 
+  shell: echo $CRICTL_ARCH
+  register: CRUCTL_ARCH_reg
+  tags: [ install ]
+- name: --------- download gpg ---------------
+  get_url: 
+    url: https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ CRICTL_VERSION }}/crictl-{{ CRICTL_VERSION }}-linux-{{ CRICTL_ARCH_reg }}.tar.gz
+    dest: /tmp
+    mode: 644
+  tags: [ install ]
+
+
+
+- name: ------Extract crictl-{{ CRICTL_VERSION }}-linux-{{ CRICTL_ARCH_reg }}.tar.gz --------------
+  unarchive:
+    src: crictl-{{ CRICTL_VERSION }}-linux-{{ CRICTL_ARCH_reg }}.tar.gz 
+    dest: /usr/local/bin
+    remote_src: yes
+  tags: [ install ]
+
+
+- name: ---------remote gpg ---------------
+  file: crictl-{{ CRICTL_VERSION }}-linux-{{ CRICTL_ARCH_reg }}.tar.gz 
+  state: absent
+  tags: [ install ]
+
+
+- name: --------check crictl version------
+  shell: crictl version
+  tags: [ install ]
+
+
