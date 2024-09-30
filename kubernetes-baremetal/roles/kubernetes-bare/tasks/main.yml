@@ -1,0 +1,426 @@
+- name: ------ "Hello this MY journy in installation kubernetes hardway" ------
+  debug:
+    msg: "This is Kubernetes installation 1.30.0"
+- name: -------set hostname -----
+  hostname: 
+    name: "{{ new_hostname }}"
+
+- name: -----check of keyring exist----
+  stat: 
+    path: /etc/apt/keyrings/docker.asc
+  tags: [prepare]
+  register: keyring_status
+
+- name: create keyring installation 
+  shell: install -m 0755 -d /etc/apt/keyrings
+  when: not keyring_status.stat.exists
+  tags: [prepare]
+
+
+
+
+- name: ------ download gpg docker --------
+  get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: 0664
+  when: not keyring_status.stat.exists
+
+  tags: [prepare]
+
+- name: ------- configure apt repositories --------
+  shell: echo ""deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null "
+  tags: [prepare]
+  # when: '"containerd" not in ansible_facts.packages'
+
+- name: -------enable package facts module  for checking  containerd is installed ------
+  package_facts:
+    manager: "auto"
+
+
+
+- name: ----- install containerd ---------
+  apt: 
+    name: containerd
+    state: present
+  when: "'containerd' not in ansible_facts.packages"
+  ##FIX THIS 
+  tags: [prepare]
+
+- name: ------ configure containerd --------
+  shell: containerd config default | tee /etc/containerd/config.toml
+  # when: "'containerd.io' not in ansible_facts.packages"
+
+
+- name: ------ set cgroup on containerd -----
+  replace:
+      path: /etc/containerd/config.toml
+      regexp: 'SystemdCgroup = false'  # The text you want to replace (regex pattern)
+      replace: 'SystemdCgroup = true'  # The new text to insert
+  notify: restart_containerd
+  # when: "'containerd.io' not in ansible_facts.packages"
+
+  tags: [ prepare ]
+
+
+- name: --------- Append Containerd kernel modules ---------
+  lineinfile:
+    path:   /etc/sysctl.d/kubernetes.conf
+    line: "{{ item }}"  # Loop through each item (word) and append it
+    create: yes         # Create the file if it doesn't exist
+    insertafter: EOF    # Append each word at the end of the file
+  with_items:
+    - "overlay"
+    - "br_netfilter"
+  tags: [ prepare ]
+- name: --------- Update kernel network settings to allow traffic to be forwarded --------
+  lineinfile:
+    path: /etc/sysctl.d/kubernetes.conf
+    line: "{{ item }}"  # Loop through each item (word) and append it
+    create: yes         # Create the file if it doesn't exist
+    insertafter: EOF    # Append each word at the end of the file
+  with_items:
+    - "net.bridge.bridge-nf-call-ip6tables = 1"
+    - "net.bridge.bridge-nf-call-iptables = 1"
+    - "net.ipv4.ip_forward = 1"
+  tags: [ prepare ]
+
+
+- name: -------- Load modules for kubernetes -----------
+  shell: modprobe "{{ item  }}"
+  with_items:
+  - overlay
+  - br_netfilter
+  tags: [ install ]
+
+- name: ------ check if kubernetes gpg exist -----------
+  stat:
+    path: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  register: gpg_status
+  tags: [ install ]
+
+- name: ------  Load repositories for kubernetes ----------- 
+  get_url: 
+    url: '{{ release_kubernetes }}'
+    dest: /tmp
+    mode: '0644'
+  tags: [ install ]
+
+
+- name: ------ Load repositories for kubernetes ------------
+  shell: gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/Release.key
+  when: not gpg_status.stat.exists
+  tags: [ install ]
+
+- name: --------- Clean up temporary key file ---------------
+  file:
+    path: /tmp/kubernetes-release.key
+    state: absent
+  when: gpg_status.stat.exists
+
+  tags: [ install ]
+
+- name: -------- Load repositories for kubernetes ---------------
+  shell: "echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] {{ gpg_apt }} /' | tee /etc/apt/sources.list.d/kubernetes.list"
+  tags: [ install ]
+
+
+
+- name: ----------install kubelet, kubeadm , kubectl--------------
+  apt:
+    name: "{{ item  }}"
+    state: present
+    update_cache: no
+  with_items: 
+    - kubelet=1.30.3-1.1
+    - kubeadm=1.30.3-1.1
+    - kubectl=1.30.3-1.1
+  notify: restart_kubelet
+  tags: [ install ]
+
+- name: -------check if crictl exists-----
+  stat:
+    path: /usr/local/bin/crictl
+  register: crictl_reg
+
+- name: ---------fetch crictl version 
+  shell: dpkg --print-architecture
+  register: CRICTL_ARCH_reg
+
+  tags: [ install ]
+
+# - name: ---------fetch crictl version 
+#   shell: echo $CRICTL_ARCH
+#   register: CRICTL_ARCH_reg
+#   tags: [ install ]
+- set_fact: 
+    CRICTL_ARCH_reg={{ CRICTL_ARCH_reg.stdout }}
+
+
+
+- name: --------- download gpg ---------------
+  get_url: 
+    url: https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ CRICTL_VERSION }}/crictl-{{ CRICTL_VERSION }}-linux-{{ CRICTL_ARCH_reg }}.tar.gz
+    dest: /tmp
+    mode: 644
+  when: not crictl_reg.stat.exists
+  tags: [ install ]
+
+
+
+- name: ------Extract crictl-{{ CRICTL_VERSION }}-linux-{{ CRICTL_ARCH_reg }}.tar.gz --------------
+  unarchive:
+    src: /tmp/crictl-{{ CRICTL_VERSION }}-linux-{{ CRICTL_ARCH_reg }}.tar.gz 
+    dest: /usr/local/bin
+    remote_src: yes
+  when: not crictl_reg.stat.exists
+
+  tags: [ install ]
+
+
+- name: ---------remote gpg ---------------
+  file: 
+    path: crictl-{{ CRICTL_VERSION }}-linux-{{ CRICTL_ARCH_reg }}.tar.gz 
+    state: absent
+  when: not crictl_reg.stat.exists
+
+  tags: [ install ]
+
+
+- name: --------check crictl version------
+  shell: crictl version
+  when: not crictl_reg.stat.exists
+  tags: [ install ]
+
+- name: copy hosts file
+  copy:
+    src: hosts
+    dest: /etc/hosts
+  tags: [ install ]
+
+# - name: ----check if cfssl exists-----
+#   stat: 
+#     path: /usr/local/bin/cfssl
+#   register: cfssl_stat
+# - name: ----download cfssl-----
+#   get_url:
+#     url: https://pkg.cfssl.org/R1.2/cfssl_linux-amd64
+#     dest: /sbin/cfssl
+#     mode: 755
+#   when: not cfssl_stat.stat.exists
+#   tags: [ install ]
+
+# - name: ----check if cfssl exists-----
+#   stat: 
+#     path: /usr/local/bin/cfssljson
+#   register: cfssljson_stat
+
+# - name: ----download cfssljson -----
+#   get_url:
+#     url: https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64
+#     dest: /sbin/cfssljson
+#     mode: 755
+#   when: not cfssljson_stat.stat.exists
+
+#   tags: [ install ]
+
+
+
+
+- name: create directory for certs 
+  file:
+    path: /tmp/certs # The path of the directory to create
+    state: directory
+    mode: '0755'  # Optional: set the permissions for the directory
+  when: ansible_hostname == 'node-1'
+
+# - name: -----COPY ca json files-----
+#   copy:
+#     src: '{{ item }}'
+#     dest: /tmp/certs
+#     mode: 755
+#   with_items: 
+#   - ca-config.json
+#   - cr-config.json
+#   tags: [  configure ]
+#   when: ansible_hostname == 'node-1'
+
+
+# - name: ------create CA files-----
+#   shell: cfssl gencert -initca ca-csr.json | cfssljson -bare ca
+#   args:
+#     chdir: /tmp/certs 
+#   when: ansible_hostname == 'node-1'
+
+# - name: ----check if output files have generated correctly----
+#   stat: 
+#     path: '{{ item }}'
+#   with_items: 
+#   - ca.pem
+#   - ca-key.pem
+#   - ca.csr
+#   register: list_ca_reg
+#   when: ansible_hostname == 'node-1'
+#   tags: [configure]
+- name: -----------------install openssl --------------------
+  apt:
+    name: openssl
+    state: present
+  tags: [ install ]
+- name: ---------------Copy ca.conf---------------
+  copy: 
+    src: ca.conf
+    dest: /tmp/certs
+  tags: [ configure]
+  when: ansible_hostname == 'node-1'
+
+- name: -----generate ca.key , ca.crt from ca.conf -------------------
+  shell:   openssl genrsa -out ca.key 4096
+  args:
+    chdir: /tmp/certs 
+  tags: [ configure , openssl]
+  when: ansible_hostname == 'node-1'
+
+
+- name: -----generate ca.key , ca.crt from ca.conf -------------------
+  shell: openssl req -x509 -new -sha512 -noenc -key ca.key -days 3653 -config ca.conf -out ca.crt
+  args:
+    chdir: /tmp/certs 
+  tags: [ configure , openssl]
+  when: ansible_hostname == 'node-1'
+
+- name: --------check ca files have created successfully---------
+  stat:
+    path: '{{ item }}'
+  with_items:
+  - /tmp/certs/ca.crt
+  - /tmp/certs/ca.key
+  tags: [ configre , openssl]
+  when: ansible_hostname == 'node-1'
+
+- name: ----------create certificate for clients----------
+  shell:   openssl genrsa -out '{{ item }}'.key 4096
+  with_items:
+  - admin 
+  - "{{ NODE_HOSTNAME }}"
+  - kube-proxy
+  - kube-scheduler
+  - kube-controller-manager
+  - kube-api-server
+  - service-accounts
+  args:
+    chdir: /tmp/certs 
+  tags: [ configure , openssl ]
+  when: ansible_hostname == 'node-1'
+ 
+- name: -----create .csr request files--------------------
+  shell:  openssl req -new -key '{{ item }}'.key -sha256 -config ca.conf -section '{{ item }}' -out '{{ item }}'.csr
+  with_items:
+  - admin 
+  - "{{ NODE_HOSTNAME }}"
+  - kube-proxy
+  - kube-scheduler
+  - kube-controller-manager
+  - kube-api-server
+  - service-accounts
+  args:
+    chdir: /tmp/certs
+  when: ansible_hostname == 'node-1'
+
+
+
+
+- name: -----create .crt files for --------------------
+  shell:    openssl x509 -req -days 3653 -in '{{ item }}'.csr -copy_extensions copyall -sha256 -CA ca.crt -CAkey ca.key -CAcreateserial -out '{{ item }}'.crt
+  with_items:
+  - admin 
+  - "{{ NODE_HOSTNAME }}"
+  - kube-proxy
+  - kube-scheduler
+  - kube-controller-manager
+  - kube-api-server
+  - service-accounts
+  args:
+    chdir: /tmp/certs
+  when: ansible_hostname == 'node-1'
+
+- name: -----list all certs in /tmp/certs-------------
+  find:
+    paths: /tmp/certs
+    patterns: .*.'{{ item }}'
+    recurse: no
+    file_type: directory
+  register: found_directories
+  with_items: 
+  - crt
+  - ca
+  - key
+  - csr
+  when: ansible_hostname == 'node-1'
+
+- debug:
+    msg: "{{ [item.path] }} "
+  with_items: "{{ found_directories.files }}"
+  when: ansible_hostname == 'node-1'
+
+
+- name: -------check /var/lib/kubelet/ exists or not -------
+  stat: 
+    path: /var/lib/kubelet/
+  register: kubelet_dir_check_reg
+
+- name: -------create /var/lib/kubelet/ -----------
+  file: 
+    path: /var/lib/kubelet/
+    stat: present
+  when: not kubelet_dir_check_reg.stat.exists
+
+  
+- name: -----copy nodes crt,keys----------
+  synchronize: 
+    src: /tmp/certs/'{{ item }}'
+    dest: /var/lib/kubelet/
+  with_items:
+  - "{{ NODE_HOSTNAME }}".crt
+  - "{{ NODE_HOSTNAME}}".key
+  - kubelet.crt
+  - kubelet.key
+
+- name: ----copy other componenets ca,keys ----------
+  synchronize: 
+    src: /tmp/certs/'{{ item }}'
+    dest: /root
+  with_items:
+  - ca.key 
+  - ca.crt 
+  - kube-api-server.key
+  - kube-api-server.crt 
+  - service-accounts.key
+  - service-accounts.crt
+  delegate_to: ansible_hostname == 'node-1'
+  tags: [configure ,openssl,sync]
+
+#"generating kubeconfig files for Kubelets the client certificate matching 
+# the Kubelet's node name must be used".
+- name: ---generate kubeconfig file for "{{ new_hostname }}" ---------
+  shell:  kubectl config set-cluster cluster.local --certificate-authority=/root/ca.crt --embed-certs=true --server=https://server.kubernetes.local:6443 --kubeconfig=/root/"{{ new_hostname }}".kubeconfig
+  tags: [ cofnigure , openssl , kubectl]
+
+- name: ---generate kubeconfig file for "{{ new_hostname }}" ------------------
+  shell: kubectl config set-credentials system:node:"{{ new_hostname }}" --client-certificate=/root/"{{ new_hostname }}".crt --client-key=/root/"{{ new_hostname }}".key --embed-certs=true --kubeconfig=/root/"{{ newhostname }}".kubeconfig
+  tags: [ cofnigure , openssl , kubectl]
+
+- name: ------set context for "{{ new_hostname }}"--------
+  shell: kubectl config set-context default --cluster=cluster.local --user=system:node:"{{ new_hostname }}" --kubeconfig=/root/"{{ new_hostname }}".kubeconfig
+  tags: [ cofnigure , openssl , kubectl]
+
+- name:  ----use conftext on "{{ new_hostname }}" ---------------
+  shell:   kubectl config use-context default --kubeconfig=/root/"{{ new_hostname}}".kubeconfig
+  tags: [ cofnigure , openssl , kubectl]
+https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/05-kubernetes-configuration-files.md
+- name: -----delete certs directory
+  file:
+    path: /tmp/certs # The path of the directory to create
+    state: absent
+    mode: '0755'  
+  when: ansible_hostname == 'node-1'

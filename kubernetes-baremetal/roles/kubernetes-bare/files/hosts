@@ -1,0 +1,4 @@
+127.0.0.1               localhost.localdomain localhost
+192.168.116.14     node-1.local       node1
+192.168.116.15     node-2.local      node2
+192.168.116.16     node-3.local      node3
