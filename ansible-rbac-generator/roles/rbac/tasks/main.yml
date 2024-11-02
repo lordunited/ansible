@@ -1,0 +1,67 @@
+- name: ------------ delete output_role_generate ----------------
+  file: 
+    path: "{{ item }}"
+    state: absent
+  with_items:
+  - /tmp/generated_role.yaml
+  - /tmp/generated_rolebinding.yaml
+  - /tmp/serviceaccount.yaml
+- name: -------------- create output_role_generate -----------
+  file:
+    path: "{{ item }}"
+    state: touch
+  with_items:
+  - /tmp/generated_role.yaml
+  - /tmp/generated_rolebinding.yaml
+  - /tmp/serviceaccount.yaml
+
+- name: ------check if serviceaccount exists in cluster or not--------------
+  shell: kubectl get service -n "{{ namespace }}" "{{ serviceaccount }}"
+  register: get_service_command_output
+  ignore_errors: true
+
+- name: ----------- create service account --------------
+  create_serviceaccount:
+    namespace: "{{ namespace }}"
+    serviceaccount_name: "{{ serviceaccount }}"
+  when: get_service_command_output.rc != 0 
+
+- name: -----apply service account------
+  shell: kubectl apply -f /tmp/serviceaccount.yaml
+
+- name: Create Kubernetes Role
+  create_role:
+    namespace: "{{ namespace }}"
+    name: "{{ rolename }}-role"
+    apigroups: "{{ apigroups }}"
+    resources: "{{ resources }}"
+    verbs: "{{ verbs }}"
+  register: role_output
+
+- name: Display the generated role YAML
+  debug:
+    msg: "{{ role_output.role_yaml }}"
+- name: create kubernetes role binding
+  create_rolebinding:
+    namespace:  "{{ namespace }}"
+    binding_name: "{{ rolename }}-rolebinding"
+    user_name: "{{ serviceaccount }}"  # Replace with the actual user name
+    role_name: "{{ rolename }}-role"
+  register: role_binding_output
+
+- name: Display the generated RoleBinding YAML
+  debug:
+    msg: "{{ role_binding_output.role_binding_yaml }}"
+      #- name: apply role and rolebinding 
+      #  community.kubernetes.k8s:
+      #    kubeconfig: "{{ kubeconfig }}"
+      #    state: present
+      #    src: "{{ item }}"
+      #  with_items:
+      #    - /tmp/generated_role.yaml
+      #    - /tmp/generated_rolebinding.yaml
+- name: apply via manipulation process
+  shell: kubectl apply -f "{{ item }}"
+  with_items:
+  - /tmp/generated_role.yaml
+  - /tmp/generated_rolebinding.yaml

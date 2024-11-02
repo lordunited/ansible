@@ -1,0 +1,23 @@
+namespace: "default"
+serviceaccount: "lordunited"
+  #resources has 3 level , 
+  #low includes deployments , pods , services, events 
+  #mediuem includes low + configmaps , secrets  #high includes full privileges 
+resources: "medium"
+  # verbs has 3 level
+  # low includes get , list , watch
+  # medium includes low + create , update , delete 
+  # high is admin!
+verbs: "read"
+  #api groups has 3 level
+  #read includes only core or ""
+  #write includes read + app 
+  #high is admin
+apigroups:  "medium"
+  # instead of using lablablah-role name 
+  # fill the variable only with the uniq name
+  # abcde-role INCORRECT
+  # abcde CORRECT
+rolename: "lordunited_developer_access"
+kubeconfig: "~/.kube/config"
+
