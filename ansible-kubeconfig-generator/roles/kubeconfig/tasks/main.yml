@@ -1,0 +1,42 @@
+- name: ------generate {{ user }} key -----
+  shell: openssl genrsa -out {{ user }}.key 2048
+  args:
+    chdir: /tmp
+- name: ------generate {{ user }} csr -------
+  shell: openssl req -new -key {{ user }}.key -out {{ user }}.csr -subj "/CN={{ user }}"
+  args: 
+    chdir: /tmp
+
+
+- name: ---------copy csr file ------
+  template: 
+    src: csr_template.yml.j2 
+    dest: /tmp/{{ user }}_csr_template.yml
+    remote_src: false
+
+- name: -----extract developer.csr from csr file ----
+  shell: CSR_CONTENT=$(cat developer.csr | base64 | tr -d '\n')
+  args:
+    chdir: /tmp
+ 
+- name: -----fill the var in template----
+  shell: sed "s|<Base64_encoded_CSR>|`cat /tmp/{{ user }}.csr | base64 | tr -d '\n'`|" {{ user }}_csr_template.yml > {{ user }}_csr.yml
+  args:
+    chdir: /tmp
+- name: ---------apply csr------------
+  shell: kubectl apply -f /tmp/{{ user }}_csr.yml
+  
+- name: ---------approve csr---------
+  shell: kubectl certificate approve {{ user }}-csr
+  
+- name: ---------generate {{ user }}.crt-------
+  shell: kubectl get csr developer-csr -o jsonpath='{.status.certificate}' | base64 --decode > {{ user}}.crt
+  args:
+    chdir: /tmp
+- name: ---------generate {{ user }}.crt------
+  shell: kubectl config set-cluster kubernetes --server=https://{{ IP_APISERVER }}:{{ PORT_APISERVER }}  --certificate-authority=/etc/kubernetes/pki/ca.crt --embed-certs=true --kubeconfig=/tmp/{{ user }}_kubeconfig
+- name: ------- set cluster confiugration ---------
+  shell: kubectl config set-credentials {{ user }} --client-certificate=/tmp/{{ user }}.crt --client-key=/tmp/{{ user }}.key --embed-certs=true --kubeconfig={{ user }}_kubeconfig
+
+- name: ------- set developer context --------
+  shell: kubectl config set-context {{ user }}-context --cluster=kubernetes --namespace=default --user={{ user }}  --kubeconfig={{ user }}_kubeconfig

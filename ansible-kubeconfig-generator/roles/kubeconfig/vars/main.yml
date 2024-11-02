@@ -1,0 +1,4 @@
+user: developer
+IP_APISERVER: 192.168.112.23
+PORT_APISERVER: 6443
+
