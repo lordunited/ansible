@@ -6,6 +6,8 @@
   - /tmp/generated_role.yaml
   - /tmp/generated_rolebinding.yaml
   - /tmp/serviceaccount.yaml
+  when: not clusterrolebinding_enabled | bool
+
 - name: -------------- create output_role_generate -----------
   file:
     path: "{{ item }}"
@@ -14,6 +16,7 @@
   - /tmp/generated_role.yaml
   - /tmp/generated_rolebinding.yaml
   - /tmp/serviceaccount.yaml
+  when: not clusterrolebinding_enabled | bool
 
 - name: ------check if serviceaccount exists in cluster or not--------------
   shell: kubectl get service -n "{{ namespace }}" "{{ serviceaccount }}"
@@ -37,6 +40,7 @@
     resources: "{{ resources }}"
     verbs: "{{ verbs }}"
   register: role_output
+  when: not clusterrolebinding_enabled | bool
 
 - name: Display the generated role YAML
   debug:
@@ -48,6 +52,7 @@
     user_name: "{{ serviceaccount }}"  # Replace with the actual user name
     role_name: "{{ rolename }}-role"
   register: role_binding_output
+  when: not clusterrolebinding_enabled | bool
 
 - name: Display the generated RoleBinding YAML
   debug:
@@ -65,3 +70,46 @@
   with_items:
   - /tmp/generated_role.yaml
   - /tmp/generated_rolebinding.yaml
+  when: not clusterrolebinding_enabled | bool
+
+
+- name: ------------ delete output_role_generate ----------------
+  file: 
+    path: "{{ item }}"
+    state: absent
+  with_items:
+  - /tmp/generated_role.yaml
+  - /tmp/generated_role.yaml
+  - /tmp/generated_clusterrolebinding.yaml
+  when: clusterrolebinding_enabled | bool
+
+- name: -------------- create output_role_generate -----------
+  file:
+    path: "{{ item }}"
+    state: touch
+  with_items:
+  - /tmp/generated_role.yaml
+  - /tmp/generated_clusterrolebinding.yaml
+  when: clusterrolebinding_enabled | bool
+
+
+- name: Generate a high-level Role
+  generate_roles_and_bindings:
+    namespace: "{{ namespace }}"
+    binding_name: "{{ clusterrolebinding_name }}"
+    user_name: "{{ serviceaccount }}"
+    role_name: "{{ rolename }}"
+    access_level: "high"
+    generate: "role"
+  when: clusterrolebinding_enabled | bool
+
+
+- name: Generate a ClusterRoleBinding for high-level Role
+  generate_roles_and_bindings:
+    namespace: "example-namespace"
+    binding_name: "high-binding"
+    user_name: "admin-user"
+    role_name: "high-level-role"
+    access_level: "high"
+    generate: "clusterrolebinding"
+  when: clusterrolebinding_enabled | bool
