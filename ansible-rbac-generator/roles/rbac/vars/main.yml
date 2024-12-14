@@ -20,4 +20,5 @@ apigroups:  "medium"
   # abcde CORRECT
 rolename: "lordunited_developer_access"
 kubeconfig: "~/.kube/config"
-
+rolebinding_enable: false
+clusterrolebinding_name: "lordunited_developer_access"
