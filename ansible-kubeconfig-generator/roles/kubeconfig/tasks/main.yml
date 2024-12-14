@@ -14,8 +14,8 @@
     dest: /tmp/{{ user }}_csr_template.yml
     remote_src: false
 
-- name: -----extract developer.csr from csr file ----
-  shell: CSR_CONTENT=$(cat developer.csr | base64 | tr -d '\n')
+- name: -----extract {{ user }} from csr file ----
+  shell: CSR_CONTENT=$(cat {{ user }}.csr | base64 | tr -d '\n')
   args:
     chdir: /tmp
  
@@ -30,13 +30,30 @@
   shell: kubectl certificate approve {{ user }}-csr
   
 - name: ---------generate {{ user }}.crt-------
-  shell: kubectl get csr developer-csr -o jsonpath='{.status.certificate}' | base64 --decode > {{ user}}.crt
+  shell: kubectl get csr {{ user }}-csr -o jsonpath='{.status.certificate}' | base64 --decode > {{ user}}.crt
   args:
     chdir: /tmp
 - name: ---------generate {{ user }}.crt------
-  shell: kubectl config set-cluster kubernetes --server=https://{{ IP_APISERVER }}:{{ PORT_APISERVER }}  --certificate-authority=/etc/kubernetes/pki/ca.crt --embed-certs=true --kubeconfig=/tmp/{{ user }}_kubeconfig
+  shell: kubectl config set-cluster {{ cluster_name }} --server=https://{{ IP_APISERVER }}:{{ PORT_APISERVER }}  --certificate-authority=/etc/kubernetes/pki/ca.crt --embed-certs=true --kubeconfig=/tmp/{{ user }}_kubeconfig
+
+
+- name: ------- set {{ user }} context --------
+  shell: kubectl config set-context {{ user }}-{{ cluster_name}}-context --cluster={{ cluster_name }} --namespace=default --user={{ user }}  --kubeconfig={{ user }}_kubeconfig
+  args:
+    chdir: /tmp
+- name: ------- use {{ user }} context --------
+  shell: kubectl config use-context {{ user }}-{{ cluster_name}}-context --kubeconfig={{ user }}_kubeconfig
+  args:
+    chdir: /tmp
+
 - name: ------- set cluster confiugration ---------
   shell: kubectl config set-credentials {{ user }} --client-certificate=/tmp/{{ user }}.crt --client-key=/tmp/{{ user }}.key --embed-certs=true --kubeconfig={{ user }}_kubeconfig
+  args:
+    chdir: /tmp
 
-- name: ------- set developer context --------
-  shell: kubectl config set-context {{ user }}-context --cluster=kubernetes --namespace=default --user={{ user }}  --kubeconfig={{ user }}_kubeconfig
+- name: ---------COPY {{ user }} to stock dir for kubeconfig-------------
+  copy: 
+    src: "/tmp/{{ user }}_kubeconfig"
+    dest:  /opt/kubeconfigs/{{ user }}_kubeconfig
+    remote_src: yes
+
