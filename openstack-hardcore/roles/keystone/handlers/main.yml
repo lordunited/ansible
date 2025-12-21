@@ -1,0 +1,5 @@
+- name: keystone_restart
+  service: 
+    name: keystone
+    state: restarted
+  

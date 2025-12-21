@@ -1,0 +1,8 @@
+keystone_db_user: "keystone"
+keystone_db_name: "keystone"
+keystone_db_password: "YourSecurePasswordHERE"
+keystone_db_address: "172.16.1.2"
+keystone_admin_password: "YourSecurePasswordHERE"
+controller_admin_address: "172.16.1.2"
+controller_internal_address: "172.16.1.2"
+controller_public_address: "172.16.1.2"

@@ -1,0 +1,119 @@
+- name: ----- install pre-requisite  controll plane -----
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - keystone
+    - python3-openstackclient
+    - apache2 
+    - nova-compute
+  tags: [ installation ]
+  when: 
+    - keystone == "enabled"
+    - nova-compute == "enabled"
+
+
+- name: ----- install pre-requisite compute node -----
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - nova-compute
+  tags: [ installation ]
+  when: 
+    - nova-compute == "enabled"
+
+
+- name:  -----Configure Keystone db connection -----
+  lineinfile:
+    path: /etc/keystone/keystone.conf
+    regexp: '^connection\s*='
+    line: "connection = mysql+pymysql://{{ keystone_db_user }}:{{ keystone_db_password }}@{{ keystone_db_address }}/keystone"
+    state: present
+  notify: keystone_restart
+  when: keystone == "enabled"
+
+
+- name:  -----Configure Keystone token fernet -----
+  lineinfile:
+    path: /etc/keystone/keystone.conf
+    regexp: '^#?\s*provider\s*=\s*fernet'
+    line: 'provider = fernet'    
+    state: present
+    insertafter: '^\[token\]'
+  notify: keystone_restart
+  when: keystone == "enabled"
+
+
+
+- name: Check if Keystone has ever been initialized
+  stat:
+    path: /etc/keystone/.ansible_db_synced
+  register: keystone_init_state
+  when: 
+    - keystone == "enabled"
+  ignore_errors: yes  # <--- Playbook will continue even if this fails
+
+
+
+- name: -----run db_sync command------
+  shell: keystone-manage db_sync
+  run_once: true
+  when: 
+    - not keystone_init_state.stat.exists
+    - keystone == "enabled"
+  #  - keystone_init_state.stat is defined
+
+
+
+- name: -----run fernet user Configure-----
+  shell: keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+  run_once: true
+  when: 
+    - not keystone_init_state.stat.exists 
+    - keystone == "enabled"
+
+
+
+- name: ------run fernet credential configure 
+  shell: keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+  args:
+    creates: /etc/keystone/credential-keys/0
+  run_once: true
+  when: 
+    - not keystone_init_state.stat.exists 
+    - keystone == "enabled"
+
+
+
+- name: Create history marker (The State File)
+  file:
+    path: /etc/keystone/.ansible_db_synced
+    state: touch
+    owner: keystone
+    group: keystone
+    mode: '0644'
+  become: yes
+  when: 
+    - not keystone_init_state.stat.exists 
+    - keystone == "enabled"
+  run_once: true
+
+
+
+- name: Bootstrap Keystone
+  shell: >
+    keystone-manage bootstrap --bootstrap-password {{ keystone_admin_password }}
+    --bootstrap-admin-url http://{{ controller_admin_address }}:5000/v3/
+    --bootstrap-internal-url http://{{ controller_internal_address }}:5000/v3/
+    --bootstrap-public-url http://{{ controller_public_address }}:5000/v3/
+    --bootstrap-region-id RegionOne
+  become: yes
+  run_once: true
+  args:
+    creates: /etc/keystone/.ansible_bootstrapped
+  when: 
+    - keystone == "enabled"
+    - not keystone_init_state.stat.exists

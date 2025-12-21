@@ -1,0 +1,34 @@
+
+- name: check whether support kvm or not 
+  shell: lscpu | grep -i vmx 
+  register: lscpu_vm 
+  tags: [check]
+
+
+- name: KVM Support Check using RC
+  ansible.builtin.debug:
+    msg: "SUCCESS: lscpu command returned zero (vmx/svm found)."
+  when: lscpu_vm.rc == 0
+  tags: [check]
+
+- name:  install kvm packages
+  apt: 
+    name: "{{ item }}"
+    state: present
+  tags: [install]
+  with_items:
+  - libvirt-daemon
+  - libvirt-clients 
+  - virtinst 
+  - qemu-kvm
+
+- name: check virt-validate
+  shell: virt-host-validate | grep -i qemu | grep -i fail | wc -l
+  register: validate_qemu
+  changed_when: false
+
+
+- name: virt is validate
+  ansible.builtin.fail:
+    msg: "FATAL: Host validation failed {{ validate_qemu.stdout }} QEMU checks. Review virt-host-validate output before proceeding with VM deployment."
+  when: validate_qemu.stdout | int > 0

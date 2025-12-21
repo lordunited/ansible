@@ -1,0 +1,7 @@
+---
+- name: Deploy KVM Role on Hosts
+  hosts: all
+  become: true
+  gather_facts: false # Optional, but speeds things up
+  roles:
+    - kvm_setup
