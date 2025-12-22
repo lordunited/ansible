@@ -12,6 +12,34 @@
   tags: [ installation ]
   when: mysql == "enabled"
 
+
+
+- name: Allow MySQL to listen on all interfaces
+  lineinfile:
+    path: /etc/mysql/mariadb.conf.d/50-server.cnf
+    regexp: '^bind-address'
+    line: 'bind-address            = 0.0.0.0'
+    state: present
+  notify: mysql_restart
+  when: 
+    - mysql == "enabled"
+
+
+- name: Check if MySQL is listening on 0.0.0.0:3306
+  ansible.builtin.shell: ss -tunlp | grep -i "0.0.0.0:3306"
+  register: mysql_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Print message if MySQL is running
+  ansible.builtin.debug:
+    msg: "MySQL is successfully listening on 0.0.0.0:3306"
+  when: mysql_check.rc == 0
+
+
+
+
+
 - name:  -----configure root password-----
   community.mysql.mysql_user:
     name: root
@@ -20,7 +48,10 @@
     check_implicit_admin: yes
     state: present
   become: yes
-  when: mysql == "enabled"
+  when: 
+    - mysql == "enabled"
+    - mysql_check.rc == 0
+
   ignore_errors: yes  # <--- Playbook will continue even if this fails
 
 - name: Create the database
@@ -30,7 +61,9 @@
 #    login_unix_socket: /var/run/mysqld/mysqld.sock
     login_user: root
     login_password: "{{ mysql_root_password }}" # Use the one you set in Step 2
-  when: mysql == "enabled"
+  when: 
+    - mysql == "enabled"
+    - mysql_check.rc == 0
 
 
 - name: Create user with full access to the database
@@ -42,4 +75,10 @@
     state: present
     login_user: root
     login_password: "{{ mysql_root_password }}" # Use the one you set in Step 2
-  when: mysql == "enabled"
+  when: 
+    - mysql == "enabled"
+    - mysql_check.rc == 0
+
+
+
+

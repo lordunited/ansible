@@ -8,10 +8,11 @@
     - python3-openstackclient
     - apache2 
     - nova-compute
+    - glance
   tags: [ installation ]
   when: 
     - keystone == "enabled"
-    - nova-compute == "enabled"
+    - novacompute == "enabled"
 
 
 - name: ----- install pre-requisite compute node -----
@@ -23,7 +24,7 @@
     - nova-compute
   tags: [ installation ]
   when: 
-    - nova-compute == "enabled"
+    - novacompute == "enabled"
 
 
 - name:  -----Configure Keystone db connection -----
@@ -54,12 +55,13 @@
   register: keystone_init_state
   when: 
     - keystone == "enabled"
-  ignore_errors: yes  # <--- Playbook will continue even if this fails
+  ignore_errors: yes
 
 
 
 - name: -----run db_sync command------
   shell: keystone-manage db_sync
+  async: 300
   run_once: true
   when: 
     - not keystone_init_state.stat.exists
@@ -85,8 +87,6 @@
   when: 
     - not keystone_init_state.stat.exists 
     - keystone == "enabled"
-
-
 
 - name: Create history marker (The State File)
   file:
@@ -117,3 +117,24 @@
   when: 
     - keystone == "enabled"
     - not keystone_init_state.stat.exists
+
+
+
+- name: ----check keystone functionality------
+  shell: openstack --os-auth-url "{{ os_auth_url }}" --os-project-name "{{ controller_os_project_name }}" --os-username "{{ controller_os_username }}" --os-password "{{ controller_os_password }}" --os-user-domain-name "{{ controller_os_user_domain_name }}" --os-project-domain-name Default domain list
+  when: 
+    - keystone == "enabled"
+    - not keystone_init_state.stat.exists
+
+- name: ----- create new domain ------
+  shell: openstack --os-auth-url "{{ os_auth_url }}" --os-project-name "{{ controller_os_project_name }}" --os-username "{{ controller_os_username }}" --os-password "{{ controller_os_password }}" --os-user-domain-name "{{ controller_os_user_domain_name }}" --os-project-domain-name Default domain create  --description "An Example Domain" "{{ controller_os_user_domain_name}}"
+  when: 
+    - keystone == "enabled"
+
+- name: -------- create new service in 
+  shell: openstack --os-auth-url "{{ os_auth_url }}" --os-project-name "{{ controller_os_project_name }}" --os-username "{{ controller_os_username }}" --os-password "{{ controller_os_password }}" project create --domain openstack --description "Service Project" "{{ controller_os_user_domain_name}}-service"
+  when: 
+    - keystone == "enabled"
+
+
+
