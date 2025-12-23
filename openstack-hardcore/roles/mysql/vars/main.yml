@@ -2,3 +2,9 @@ mysql_root_password: "YourSecurePasswordHERE"
 keystone_db_user: "keystone"
 keystone_db_name: "keystone"
 keystone_db_password: "YourSecurePasswordHERE"
+openstack_services:
+  - { name: "keystone", user: "keystone", db: "keystone", pass: "YourSecurePasswordHERE" }
+  - { name: "cinder", user: "cinder", db: "cinder", pass: "YourSecurePasswordHERE" }
+  - { name: "glance", user: "glance", db: "glance", pass: "YourSecurePasswordHERE" }
+  - { name: "neutron", user: "neutron", db: "neutron", pass: "YourSecurePasswordHERE" }
+  - { name: "nova", user: "nova", db: "nova", pass: "YourSecurePasswordHERE" }

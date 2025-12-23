@@ -9,6 +9,7 @@
     - apache2 
     - nova-compute
     - glance
+    - cinder-volume
   tags: [ installation ]
   when: 
     - keystone == "enabled"
@@ -102,7 +103,6 @@
   run_once: true
 
 
-
 - name: Bootstrap Keystone
   shell: >
     keystone-manage bootstrap --bootstrap-password {{ keystone_admin_password }}
@@ -119,22 +119,67 @@
     - not keystone_init_state.stat.exists
 
 
-
 - name: ----check keystone functionality------
-  shell: openstack --os-auth-url "{{ os_auth_url }}" --os-project-name "{{ controller_os_project_name }}" --os-username "{{ controller_os_username }}" --os-password "{{ controller_os_password }}" --os-user-domain-name "{{ controller_os_user_domain_name }}" --os-project-domain-name Default domain list
+  shell: > 
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "{{ controller_os_project_name }}"
+    --os-username "{{ controller_os_username }}"
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "{{ controller_os_user_domain_name }}"
+    --os-project-domain-name Default domain list
   when: 
     - keystone == "enabled"
     - not keystone_init_state.stat.exists
 
+
+- name: check if "{{ controller_os_project_name }}" exist or not 
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "{{ controller_os_project_name }}"
+    --os-username "{{ controller_os_username }}"
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default" 
+    --os-project-domain-name "Default" 
+    --os-identity-api-version 3 domain list | grep -i "openstack"
+  register: controller_os_project_name_state
+  when: 
+    - keystone == "enabled"
+  ignore_errors: yes
+
+
+
 - name: ----- create new domain ------
-  shell: openstack --os-auth-url "{{ os_auth_url }}" --os-project-name "{{ controller_os_project_name }}" --os-username "{{ controller_os_username }}" --os-password "{{ controller_os_password }}" --os-user-domain-name "{{ controller_os_user_domain_name }}" --os-project-domain-name Default domain create  --description "An Example Domain" "{{ controller_os_user_domain_name}}"
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}" 
+    --os-project-name "{{ controller_os_project_name }}"
+    --os-username "{{ controller_os_username }}" 
+    --os-password "{{ controller_os_password }}" 
+    --os-user-domain-name "Default"
+    --os-project-domain-name "Default"
+    --os-identity-api-version 3 domain create  --description "An Example Domain" "{{ controller_os_user_domain_name}}"
+  when: 
+    - keystone == "enabled"
+    - controller_os_project_name_state.rc == 0
+
+
+
+- name: -------- create new services in "{{ controller_os_user_domain_name}}" ---------
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "{{ controller_os_project_name }}" --os-username "{{ controller_os_username }}"
+    --os-password "{{ controller_os_password }}" 
+    project create --domain openstack --description "Service Project" "{{ controller_os_user_domain_name}}-service"
   when: 
     - keystone == "enabled"
 
-- name: -------- create new service in 
-  shell: openstack --os-auth-url "{{ os_auth_url }}" --os-project-name "{{ controller_os_project_name }}" --os-username "{{ controller_os_username }}" --os-password "{{ controller_os_password }}" project create --domain openstack --description "Service Project" "{{ controller_os_user_domain_name}}-service"
+
+
+- name: ------- create new project in "{{ controller_os_user_domain_name}}"
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "{{ controller_os_project_name }}"
+    --os-username "{{ controller_os_username }}"
+    --os-password "{{ controller_os_password }}"
+    project create --domain "{{ controller_os_user_domain_name }}" --description "Demo Project" "{{ controller_os_user_domain_name }}-project"
   when: 
     - keystone == "enabled"
-
-
-

@@ -54,31 +54,28 @@
 
   ignore_errors: yes  # <--- Playbook will continue even if this fails
 
-- name: Create the database
+- name: Create OpenStack Databases
   community.mysql.mysql_db:
-    name: "{{ keystone_db_name }}"
+    name: "{{ item.db }}"
     state: present
-#    login_unix_socket: /var/run/mysqld/mysqld.sock
     login_user: root
-    login_password: "{{ mysql_root_password }}" # Use the one you set in Step 2
+    login_password: "{{ mysql_root_password }}"
+  loop: "{{ openstack_services }}"
   when: 
     - mysql == "enabled"
     - mysql_check.rc == 0
-
-
+    
 - name: Create user with full access to the database
   community.mysql.mysql_user:
-    name: "{{ keystone_db_user }}"
-    password: "{{ keystone_db_password }}"
-    priv: "{{ keystone_db_name }}.*:ALL"
-    host: "%"  # Allows connection from any host. Use 'localhost' for local only.
+    name: "{{ item.user }}"
+    password: "{{ item.pass }}"
+    priv: "{{ item.db }}.*:ALL"
+    host: "%"
     state: present
     login_user: root
-    login_password: "{{ mysql_root_password }}" # Use the one you set in Step 2
+    login_password: "{{ mysql_root_password }}"
+  loop: "{{ openstack_services }}"
   when: 
     - mysql == "enabled"
     - mysql_check.rc == 0
-
-
-
 
