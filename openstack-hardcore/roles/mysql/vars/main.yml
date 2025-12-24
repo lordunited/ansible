@@ -4,7 +4,7 @@ keystone_db_name: "keystone"
 keystone_db_password: "YourSecurePasswordHERE"
 openstack_services:
   - { name: "keystone", user: "keystone", db: "keystone", pass: "YourSecurePasswordHERE" }
-  - { name: "cinder", user: "cinder", db: "cinder", pass: "YourSecurePasswordHERE" }
+  - { name: "cinder", user: "cinder", db: "cinder", pass: "YourSecurePasswordHERE",path: '/v3/%(project_id)s' }
   - { name: "glance", user: "glance", db: "glance", pass: "YourSecurePasswordHERE" }
   - { name: "neutron", user: "neutron", db: "neutron", pass: "YourSecurePasswordHERE" }
-  - { name: "nova", user: "nova", db: "nova", pass: "YourSecurePasswordHERE" }
+  - { name: "nova", user: "nova", db: "nova", pass: "YourSecurePasswordHERE",path: '/v2.1'  }

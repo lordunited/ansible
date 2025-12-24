@@ -11,23 +11,9 @@ controller_os_project_name: "admin"
 controller_os_username: "admin"
 controller_os_password: "YourSecurePasswordHERE"
 controller_os_user_domain_name: "openstack"
-cinder_db_user: "cinder"
-cinder_db_name: "cinder"
-cinder_db_password: "YourSecurePasswordHERE"
-cinder_db_address: "172.16.1.2"
-cinder_admin_password: "YourSecurePasswordHERE"
-glance_db_user: "glance"
-glance_db_name: "glance"
-glance_db_password: "YourSecurePasswordHERE"
-glance_db_address: "172.16.1.2"
-glance_admin_password: "YourSecurePasswordHERE"
-neutron_db_user: "neutron"
-neutron_db_name: "neutron"
-neutron_db_password: "YourSecurePasswordHERE"
-neutron_db_address: "172.16.1.2"
-neutron_admin_password: "YourSecurePasswordHERE"
-nova_db_user: "nova"
-nova_db_name: "nova"
-nova_db_password: "YourSecurePasswordHERE"
-nova_db_address: "172.16.1.2"
-nova_admin_password: "YourSecurePasswordHERE"
+openstack_services:
+  - { name: "keystone", user: "keystone", db: "keystone", pass: "YourSecurePasswordHERE" }
+  - { name: "cinder", user: "cinder", db: "cinder", pass: "YourSecurePasswordHERE",path: '/v3/%(project_id)s' }
+  - { name: "glance", user: "glance", db: "glance", pass: "YourSecurePasswordHERE" }
+  - { name: "neutron", user: "neutron", db: "neutron", pass: "YourSecurePasswordHERE" }
+  - { name: "nova", user: "nova", db: "nova", pass: "YourSecurePasswordHERE",path: '/v2.1'  }

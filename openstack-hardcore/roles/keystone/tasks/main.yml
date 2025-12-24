@@ -89,18 +89,6 @@
     - not keystone_init_state.stat.exists 
     - keystone == "enabled"
 
-- name: Create history marker (The State File)
-  file:
-    path: /etc/keystone/.ansible_db_synced
-    state: touch
-    owner: keystone
-    group: keystone
-    mode: '0644'
-  become: yes
-  when: 
-    - not keystone_init_state.stat.exists 
-    - keystone == "enabled"
-  run_once: true
 
 
 - name: Bootstrap Keystone
@@ -131,6 +119,19 @@
     - keystone == "enabled"
     - not keystone_init_state.stat.exists
 
+- name: Create history marker (The State File)
+  file:
+    path: /etc/keystone/.ansible_db_synced
+    state: touch
+    owner: keystone
+    group: keystone
+    mode: '0644'
+  become: yes
+  when: 
+    - not keystone_init_state.stat.exists 
+    - keystone == "enabled"
+  run_once: true
+
 
 - name: check if "{{ controller_os_project_name }}" exist or not 
   shell: >
@@ -144,6 +145,8 @@
   register: controller_os_project_name_state
   when: 
     - keystone == "enabled"
+#    - not keystone_init_state.stat.exists 
+
   ignore_errors: yes
 
 
@@ -160,26 +163,102 @@
   when: 
     - keystone == "enabled"
     - controller_os_project_name_state.rc == 0
+    - not keystone_init_state.stat.exists 
 
 
-
-- name: -------- create new services in "{{ controller_os_user_domain_name}}" ---------
-  shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "{{ controller_os_project_name }}" --os-username "{{ controller_os_username }}"
+- name: ---add admin role to  "{{ controller_os_project_name }}" 
+  shell: > 
+    openstack --os-auth-url "{{ controller_os_auth_url }}" 
+    --os-project-name "{{ controller_os_project_name }}"
+    --os-username "{{ controller_os_username }}" 
     --os-password "{{ controller_os_password }}" 
-    project create --domain openstack --description "Service Project" "{{ controller_os_user_domain_name}}-service"
+    --os-user-domain-name "Default"
+    --os-project-domain-name "Default"
+    --os-identity-api-version 3     
+    role add --domain  "{{ controller_os_project_name }}" 
+    --user admin 
+    --user-domain Default admin
   when: 
     - keystone == "enabled"
+    - controller_os_project_name_state.rc == 0
+    - not keystone_init_state.stat.exists 
+
+# - name: -------- create new services in "{{ controller_os_user_domain_name}}" ---------
+#   shell: >
+#     openstack --os-auth-url "{{ controller_os_auth_url }}"
+#     --os-project-name "{{ controller_os_project_name }}" 
+#     --os-username "{{ controller_os_username }}"
+#     --os-password "{{ controller_os_password }}" 
+#     project create --domain openstack --description "Service Project" "{{ controller_os_user_domain_name}}-service"
+#   when: 
+#     - keystone == "enabled"
 
 
 
-- name: ------- create new project in "{{ controller_os_user_domain_name}}"
+# - name: ------- create new project in "{{ controller_os_user_domain_name}}"
+#   shell: >
+#     openstack --os-auth-url "{{ controller_os_auth_url }}"
+#     --os-project-name "{{ controller_os_project_name }}"
+#     --os-username "{{ controller_os_username }}"
+#     --os-password "{{ controller_os_password }}"
+#     project create --domain "{{ controller_os_user_domain_name }}" --description "Demo Project" "{{ controller_os_user_domain_name }}-project"
+#   when: 
+#     - keystone == "enabled"
+#   ignore_errors: yes
+
+- name: Create the project for services in openstack domain
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default" --os-project-domain-name "Default"
+    project create --domain openstack --description "Service Project for Domain Openstack" "{{ controller_os_user_domain_name }}" 
+  register: create_proj
+  when: 
+    - keystone == "enabled"
+    - controller_os_project_name_state.rc == 0
+    - not keystone_init_state.stat.exists 
+  tags: 
+    - users
+
+- name: ------- create new users in keystone -------
   shell: >
     openstack --os-auth-url "{{ controller_os_auth_url }}"
     --os-project-name "{{ controller_os_project_name }}"
     --os-username "{{ controller_os_username }}"
     --os-password "{{ controller_os_password }}"
-    project create --domain "{{ controller_os_user_domain_name }}" --description "Demo Project" "{{ controller_os_user_domain_name }}-project"
+    --os-user-domain-name "Default"
+    --os-project-domain-name "Default"
+    user create --domain "{{ controller_os_user_domain_name }}" 
+    --project "{{ controller_os_user_domain_name }}" 
+    --password "{{ controller_os_password }}" "{{ item }}"
+  register: final_endpoints
+  with_items:
+    - glance
+    - nova
+    - neutron
+    - cinder
   when: 
     - keystone == "enabled"
+    - controller_os_project_name_state.rc == 0
+    - not keystone_init_state.stat.exists 
+  tags: 
+    - users
+
+- name: Add admin role to service users
+  shell: >
+      openstack --os-auth-url "{{ controller_os_auth_url }}"
+      --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
+      --os-user-domain-name "Default" --os-project-domain-name "Default"
+      role add --project "{{ controller_os_user_domain_name }}" 
+      --user "{{ item.name }}" --user-domain "{{ controller_os_user_domain_name }}" admin
+  with_items: "{{ openstack_services }}"
+  register: role_add
+  failed_when: "role_add.rc != 0 and 'already has' not in role_add.stderr"
+  when:
+    - keystone == "enabled"
+    - controller_os_project_name_state.rc == 0
+    - not keystone_init_state.stat.exists 
+  tags: [ users ]
+
+
+  
