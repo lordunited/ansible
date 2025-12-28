@@ -2,7 +2,8 @@
 - hosts: all
   become: yes
   remote_user: adminuser
-  become_user: root  # Switches from ssh_user -> root -> mysql
+  become_user: root
   roles:
    - mysql
    - keystone
+   - glance

@@ -1,5 +1,5 @@
 - name: keystone_restart
   service: 
-    name: keystone
+    name: apache2
     state: restarted
   

@@ -7,13 +7,9 @@
     - keystone
     - python3-openstackclient
     - apache2 
-    - nova-compute
-    - glance
-    - cinder-volume
   tags: [ installation ]
   when: 
     - keystone == "enabled"
-    - novacompute == "enabled"
 
 
 - name: ----- install pre-requisite compute node -----
@@ -293,6 +289,18 @@
   tags: [ service ]
 
 
+- name: check endpoint creation
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "admin" --os-username "admin" 
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default"
+    --os-project-domain-name "Default"  endpoint list | grep -E "nova|keystone|glance|cinder|keystone"
+  register: check_endpoint
+  tags: [ endpoint ]
+
+
+
 - name: Create OpenStack  internal  Endpoints
   shell: >
     openstack --os-auth-url "{{ controller_os_auth_url }}" 
@@ -300,55 +308,60 @@
     --os-username "admin"  
     --os-password "{{ controller_os_password }}" 
     --os-user-domain-name "Default" 
-    --os-project-domain-name "Default" endpoint create --region RegionOne {{ item.name }} internal "{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}
+    --os-project-domain-name "Default" endpoint create --region RegionOne {{ item.name }} internal 'http://{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}'
   with_items:
     - { name: 'glance', type: 'image', port: '9292' }
     - { name: 'nova', type: 'compute', port: '8774', path: '/v2.1' }
     - { name: 'neutron', type: 'network', port: '9696' }
     - { name: 'cinder', type: 'volumev3', port: '8776', path: '/v3/%(project_id)s' }
-  register: catalog_out
   when:
     - keystone == "enabled"
+    - check_endpoint.rc == 1   
+
   tags: [ endpoint ]
 
 
 
-- name: Create OpenStack Services public and Endpoints
+- name: Create OpenStack Services public  Endpoints
   shell: >
     openstack --os-auth-url "{{ controller_os_auth_url }}" 
     --os-project-name "admin" 
     --os-username "admin"  --os-password "{{ controller_os_password }}" 
     --os-user-domain-name "Default" 
-    --os-project-domain-name "Default"  endpoint create --region RegionOne {{ item.name }} public "{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}
+    --os-project-domain-name "Default"  endpoint create --region RegionOne {{ item.name }} public 'http://{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}'
 
   with_items:
     - { name: 'glance', type: 'image', port: '9292' }
     - { name: 'nova', type: 'compute', port: '8774', path: '/v2.1' }
     - { name: 'neutron', type: 'network', port: '9696' }
     - { name: 'cinder', type: 'volumev3', port: '8776', path: '/v3/%(project_id)s' }
-  register: catalog_out
   when:
     - keystone == "enabled"
+    - check_endpoint.rc == 1   
+
     # - controller_os_project_name_state.rc == 0
     # - not keystone_init_state.stat.exists 
   tags: [ endpoint ]
 
 
-- name: Create OpenStack Services admin and Endpoints
+- name: Create OpenStack Services admin  Endpoints
   shell: >
     openstack --os-auth-url "{{ controller_os_auth_url }}" 
     --os-project-name "admin" --os-username "admin" 
      --os-password "{{ controller_os_password }}" 
      --os-user-domain-name "Default" --os-project-domain-name "Default" 
-      endpoint create --region RegionOne {{ item.name }} admin "{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}
+      endpoint create --region RegionOne {{ item.name }} admin 'http://{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}'
   with_items:
     - { name: 'glance', type: 'image', port: '9292' }
     - { name: 'nova', type: 'compute', port: '8774', path: '/v2.1' }
     - { name: 'neutron', type: 'network', port: '9696' }
     - { name: 'cinder', type: 'volumev3', port: '8776', path: '/v3/%(project_id)s' }
-  register: catalog_out
   when:
     - keystone == "enabled"
+    - check_endpoint.rc == 1   
+
     # - controller_os_project_name_state.rc == 0
     # - not keystone_init_state.stat.exists 
   tags: [ endpoint ]
+  async: 30
+  poll: 0
