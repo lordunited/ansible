@@ -67,7 +67,7 @@
   when: 
     - not keystone_init_state.stat.exists
     - keystone == "enabled"
-  #  - keystone_init_state.stat is defined
+    - keystone_init_state.stat is defined
 
 
 
@@ -110,10 +110,10 @@
 - name: ----check keystone functionality------
   shell: > 
     openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "{{ controller_os_project_name }}"
+    --os-project-name "admin"
     --os-username "{{ controller_os_username }}"
     --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "{{ controller_os_user_domain_name }}"
+    --os-user-domain-name "default"
     --os-project-domain-name Default domain list
   when: 
     - keystone == "enabled"
@@ -133,23 +133,6 @@
   run_once: true
 
 
-- name: check if "{{ controller_os_project_name }}" exist or not 
-  shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "{{ controller_os_project_name }}"
-    --os-username "{{ controller_os_username }}"
-    --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default" 
-    --os-project-domain-name "Default" 
-    --os-identity-api-version 3 domain list | grep -i "openstack"
-  register: controller_os_project_name_state
-  when: 
-    - keystone == "enabled"
-#    - not keystone_init_state.stat.exists 
-
-  ignore_errors: yes
-
-
 
 - name: ----- create new domain ------
   shell: >
@@ -162,7 +145,6 @@
     --os-identity-api-version 3 domain create  --description "An Example Domain" "{{ controller_os_user_domain_name}}"
   when: 
     - keystone == "enabled"
-    - controller_os_project_name_state.rc == 0
     - not keystone_init_state.stat.exists 
 
 
@@ -180,8 +162,8 @@
     --user-domain Default admin
   when: 
     - keystone == "enabled"
-    - controller_os_project_name_state.rc == 0
     - not keystone_init_state.stat.exists 
+  ignore_errors: yes
 
 # - name: -------- create new services in "{{ controller_os_user_domain_name}}" ---------
 #   shell: >
@@ -206,31 +188,41 @@
 #     - keystone == "enabled"
 #   ignore_errors: yes
 
-- name: Create the project for services in openstack domain
+- name: Create the project for services in default domain
   shell: >
     openstack --os-auth-url "{{ controller_os_auth_url }}"
     --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
     --os-user-domain-name "Default" --os-project-domain-name "Default"
-    project create --domain openstack --description "Service Project for Domain Openstack" "{{ controller_os_user_domain_name }}" 
+    project create --domain default --description "Service Project for Domain default" "{{ controller_os_user_domain_name }}" 
   register: create_proj
   when: 
     - keystone == "enabled"
-    - controller_os_project_name_state.rc == 0
     - not keystone_init_state.stat.exists 
   tags: 
     - users
 
+- name: check user creation
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default" --os-project-domain-name "Default" user list | grep -E "admin|glance|nova|neutron|cinder"
+  register: check_users
+  when: 
+    - keystone == "enabled"
+  ignore_errors: yes
+
+
 - name: ------- create new users in keystone -------
   shell: >
     openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "{{ controller_os_project_name }}"
-    --os-username "{{ controller_os_username }}"
+    --os-project-name "admin"
+    --os-username "admin"
     --os-password "{{ controller_os_password }}"
     --os-user-domain-name "Default"
     --os-project-domain-name "Default"
-    user create --domain "{{ controller_os_user_domain_name }}" 
-    --project "{{ controller_os_user_domain_name }}" 
-    --password "{{ controller_os_password }}" "{{ item }}"
+    user create --domain Default
+    --project admin
+    --password "{{ controller_os_password }}" "{{ item }}"  
   register: final_endpoints
   with_items:
     - glance
@@ -239,10 +231,23 @@
     - cinder
   when: 
     - keystone == "enabled"
-    - controller_os_project_name_state.rc == 0
-    - not keystone_init_state.stat.exists 
+    - check_users.rc != 0  
+
   tags: 
     - users
+  ignore_errors: yes
+
+- name: check user creation
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default" --os-project-domain-name "Default" user list | grep -E "admin|glance|nova|neutron|cinder"
+  register: check_users
+  when: 
+    - keystone == "enabled"
+
+
+
 
 - name: Add admin role to service users
   shell: >
@@ -253,12 +258,97 @@
       --user "{{ item.name }}" --user-domain "{{ controller_os_user_domain_name }}" admin
   with_items: "{{ openstack_services }}"
   register: role_add
-  failed_when: "role_add.rc != 0 and 'already has' not in role_add.stderr"
   when:
     - keystone == "enabled"
-    - controller_os_project_name_state.rc == 0
-    - not keystone_init_state.stat.exists 
+    - check_users.rc == 0  
   tags: [ users ]
 
 
-  
+- name: check services creation
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default" --os-project-domain-name "Default" service list | grep -E "admin|glance|nova|neutron|cinder"
+  register: check_services
+  when: 
+    - keystone == "enabled"
+  tags: [ service ]
+  ignore_errors: yes
+
+
+
+- name: Create OpenStack Services
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}" --os-project-name "admin" --os-username "admin"  --os-password "{{ controller_os_password }}" --os-user-domain-name "Default" --os-project-domain-name "Default" service create --name {{ item.name }} {{ item.type }}
+
+  with_items:
+    - { name: 'glance', type: 'image', port: '9292' }
+    - { name: 'nova', type: 'compute', port: '8774', path: '/v2.1' }
+    - { name: 'neutron', type: 'network', port: '9696' }
+    - { name: 'cinder', type: 'volumev3', port: '8776', path: '/v3/%(project_id)s' }
+  register: catalog_out
+  when:
+    - keystone == "enabled"
+    - check_services.rc == 1   
+  tags: [ service ]
+
+
+- name: Create OpenStack  internal  Endpoints
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}" 
+    --os-project-name "admin" 
+    --os-username "admin"  
+    --os-password "{{ controller_os_password }}" 
+    --os-user-domain-name "Default" 
+    --os-project-domain-name "Default" endpoint create --region RegionOne {{ item.name }} internal "{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}
+  with_items:
+    - { name: 'glance', type: 'image', port: '9292' }
+    - { name: 'nova', type: 'compute', port: '8774', path: '/v2.1' }
+    - { name: 'neutron', type: 'network', port: '9696' }
+    - { name: 'cinder', type: 'volumev3', port: '8776', path: '/v3/%(project_id)s' }
+  register: catalog_out
+  when:
+    - keystone == "enabled"
+  tags: [ endpoint ]
+
+
+
+- name: Create OpenStack Services public and Endpoints
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}" 
+    --os-project-name "admin" 
+    --os-username "admin"  --os-password "{{ controller_os_password }}" 
+    --os-user-domain-name "Default" 
+    --os-project-domain-name "Default"  endpoint create --region RegionOne {{ item.name }} public "{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}
+
+  with_items:
+    - { name: 'glance', type: 'image', port: '9292' }
+    - { name: 'nova', type: 'compute', port: '8774', path: '/v2.1' }
+    - { name: 'neutron', type: 'network', port: '9696' }
+    - { name: 'cinder', type: 'volumev3', port: '8776', path: '/v3/%(project_id)s' }
+  register: catalog_out
+  when:
+    - keystone == "enabled"
+    # - controller_os_project_name_state.rc == 0
+    # - not keystone_init_state.stat.exists 
+  tags: [ endpoint ]
+
+
+- name: Create OpenStack Services admin and Endpoints
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}" 
+    --os-project-name "admin" --os-username "admin" 
+     --os-password "{{ controller_os_password }}" 
+     --os-user-domain-name "Default" --os-project-domain-name "Default" 
+      endpoint create --region RegionOne {{ item.name }} admin "{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}
+  with_items:
+    - { name: 'glance', type: 'image', port: '9292' }
+    - { name: 'nova', type: 'compute', port: '8774', path: '/v2.1' }
+    - { name: 'neutron', type: 'network', port: '9696' }
+    - { name: 'cinder', type: 'volumev3', port: '8776', path: '/v3/%(project_id)s' }
+  register: catalog_out
+  when:
+    - keystone == "enabled"
+    # - controller_os_project_name_state.rc == 0
+    # - not keystone_init_state.stat.exists 
+  tags: [ endpoint ]
