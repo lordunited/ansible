@@ -1,0 +1,30 @@
+- name: ----- install pre-requisite  -----
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - memcached
+  tags: [ memcached ]
+  when: memcached == "enabled"
+
+
+- name: Deploy Memcached configuration
+  template:
+    src: memcached.conf.j2
+    dest: /etc/memcached.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Memcached
+  tags: [ memcached ]
+  when: memcached == "enabled"
+
+
+
+
+- name: flush all caches
+  shell: |
+    echo "flush_all" | nc localhost 11211
+  tags: [ memcached ]
+  when: memcached == "enabled"

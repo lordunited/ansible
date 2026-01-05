@@ -1,0 +1,7 @@
+-m {{ memcached_memory_limit | default(64) }}
+-p 11211
+-u memcache
+
+-l {{ memcached_listen_ip | default('0.0.0.0') }}
+
+-c 1024

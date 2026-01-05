@@ -1,0 +1,265 @@
+- name: Install system dependencies for Database and Kafka
+  become: yes
+  apt:
+    name:
+      - librdkafka1
+      - rsyslog
+      - rsyslog-kafka
+      - postgresql
+      - postgresql-contrib
+      - mariadb-server
+      - mariadb-client
+      - wget
+      - curl
+      - openjdk-11-jdk
+      - python3-pip
+      - python3.12-venv
+      - python3
+      - python3-pymysql
+      - python3-psycopg2
+    state: present
+    update_cache: yes
+
+
+- name: Setup Python Virtual Environment and Install Dependencies
+  pip:
+    name:
+      - pip             
+      - psycopg2-binary
+      - kafka-python-ng 
+      - python-dotenv
+    state: latest
+    virtualenv: "/root/{{ venv_name }}"
+    virtualenv_command: python3 -m venv
+
+
+- name: Create MariaDB database
+  community.mysql.mysql_db:
+    name: "{{ db_name }}"
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+- name: Create MariaDB user and grant privileges
+  community.mysql.mysql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_pass }}"
+    priv: "{{ db_name }}.*:ALL"
+    host: "localhost"
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+
+- name: Create PostgreSQL database
+  community.postgresql.postgresql_db:
+    name: "{{ db_name }}"
+    state: present
+  become: yes
+  become_user: postgres
+
+- name: Create PostgreSQL user
+  community.postgresql.postgresql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_pass }}"
+    state: present
+  become: yes
+  become_user: postgres
+
+- name: Grant all privileges on database to user
+  community.postgresql.postgresql_privs:
+    db: "{{ db_name }}"
+    role: "{{ db_user }}"
+    objs: "{{ db_name }}"
+    type: database
+    privs: ALL
+  become: yes
+  become_user: postgres
+
+- name: Grant USAGE and CREATE on public schema to user
+  community.postgresql.postgresql_privs:
+    db: "{{ db_name }}"
+    role: "{{ db_user }}"
+    objs: public
+    type: schema
+    privs: USAGE,CREATE
+  become: yes
+  become_user: postgres
+
+- name: Create mariadb_logs table
+  community.postgresql.postgresql_query:
+    db: "{{ db_name }}"
+    query: |
+      CREATE TABLE IF NOT EXISTS mariadb_logs (
+          id SERIAL PRIMARY KEY,
+          log_type VARCHAR(50),
+          message TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+  become: yes
+  become_user: postgres
+
+- name: Grant table and sequence permissions
+  community.postgresql.postgresql_query:
+    db: "{{ db_name }}"
+    query: |
+      GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE mariadb_logs TO {{ db_user }};
+      GRANT USAGE, SELECT ON SEQUENCE mariadb_logs_id_seq TO {{ db_user }};
+  become: yes
+  become_user: postgres
+
+- name: Copy SQL script to the server
+  ansible.builtin.copy:
+    src: psql.sql
+    dest: /tmp/psql.sql
+    mode: '0644'
+  become: yes
+
+- name: Execute SQL script from local file
+  shell: |
+    sudo -u postgres psql -d "{{ db_name }}" -f /tmp/psql.sql  
+  # become: yes
+  # become_user: postgres
+  register: sql_result
+
+- name: Debug SQL output
+  ansible.builtin.debug:
+    var: sql_result
+
+# - name: Remove temporary SQL script
+#   ansible.builtin.file:
+#     path: /tmp/psql.sql
+#     state: absent
+#   become: yes
+
+
+
+- name: Allow PostgreSQL to listen on all interfaces
+  lineinfile:
+    path: "/etc/postgresql/{{ pg_version }}/main/postgresql.conf"
+    regexp: '^#?listen_addresses\s*='
+    line: "listen_addresses = '*'"
+    state: present
+  become: yes
+  notify: psql_restart
+
+
+
+- name: Ensure MySQL log directory exists
+  file:
+    path: /var/log/mysql
+    state: directory
+    owner: mysql
+    group: mysql
+    mode: '0750'
+
+- name: Ensure general log file exists
+  file:
+    path: /var/log/mysql/general.log
+    state: touch
+    owner: mysql
+    group: mysql
+    mode: '0640'
+  # This prevents updating the timestamp if the file already exists
+  args:
+    modification_time: preserve
+    access_time: preserve
+
+- name: Ensure error log file exists
+  file:
+    path: /var/log/mysql/error.log
+    state: touch
+    owner: mysql
+    group: mysql
+    mode: '0640'
+  args:
+    modification_time: preserve
+    access_time: preserve
+
+- name: copy templates from ansbile to server
+  template:
+    src: mysql.conf.j2  
+    dest: /etc/mysql/conf.d/general_log.cnf
+    owner: mysql
+    group: mysql
+    mode: '0644'
+  notify: mysql_restart
+
+- name: Add syslog user to mysql group
+  user:
+    name: syslog
+    groups: mysql
+    append: yes
+  become: yes
+
+- name: Set directory permissions for group access
+  file:
+    path: /var/log/mysql
+    state: directory
+    owner: mysql
+    group: mysql
+    mode: '0750'
+  become: yes
+
+- name: Set log file permissions for group access
+  file:
+    path: /var/log/mysql/general.log
+    state: file
+    owner: mysql
+    group: mysql
+    mode: '0640'
+  become: yes
+
+- name: copy templates from ansbile to server
+  template:
+    src: 60-mariadb-kafka.conf.j2  
+    dest: /etc/rsyslog.d/60-mariadb-kafka.conf
+  notify: rsyslog_restart
+
+- name: Download and extract Kafka
+  ansible.builtin.unarchive:
+    src: https://archive.apache.org/dist/kafka/3.4.0/kafka_2.12-3.4.0.tgz
+    dest: /opt/
+    remote_src: yes
+    creates: /opt/kafka_2.12-3.4.0/bin  
+  become: yes
+
+- name: Copy directory using synchronize
+  copy:
+    src: /opt/kafka_2.12-3.4.0/
+    dest: /opt/kafka
+    remote_src: true
+  become: yes
+
+- name: copy kafka service from ansbile to server
+  template:
+    src: kafka.service.j2  
+    dest: /etc/systemd/system/kafka.service
+
+
+- name: copy zookeeper service from ansbile to server
+  template:
+    src: zookeeper.service.j2  
+    dest: /etc/systemd/system/zookeeper.service
+
+- name: Force a systemd daemon-reload
+  systemd_service:
+    daemon_reload: yes
+  become: yes
+
+
+- name: kafka_start
+  become: yes
+  service:
+    name: kafka
+    state: started
+    enabled: yes
+
+- name: zookeeper_start
+  become: yes
+  service:
+    name: zookeeper
+    state: started
+    enabled: yes
+
+- name: create_topic
+  shell: "/opt/kafka/bin/kafka-topics.sh --create --topic {{ topic_name }} --bootstrap-server {{ kafka_broker }} --partitions 1 --replication-factor 1"
+  ignore_errors: yes

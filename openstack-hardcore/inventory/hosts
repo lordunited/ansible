@@ -1,5 +1,5 @@
 [local]
-172.16.1.2 hostname=ubuntu-01 mysql=enabled keystone=enabled ansible_python_interpreter=/usr/bin/python3 glance=enabled novacompute=enabled
-172.16.1.3 hostname=ubuntu-02 mysql=disabled keystone=disabled novacompute=enabled glance=disabled
-172.16.1.4 hostname=ubuntu-03 mysql=disabled keystone=disabled novacompute=enabled glance=disabled
-172.16.1.5 hostname=ubuntu-04 mysql=disabled keystone=disabled novacompute=enabled glance=disabled
+172.16.1.2 hostname=ubuntu-01 mysql=enabled keystone=enabled ansible_python_interpreter=/usr/bin/python3 glance=enabled novacompute=enabled memcached=enabled dashboard=enabled
+172.16.1.3 hostname=ubuntu-02 mysql=disabled keystone=disabled novacompute=enabled glance=disabled memcached=disabled dashboard=disabled
+172.16.1.4 hostname=ubuntu-03 mysql=disabled keystone=disabled novacompute=enabled glance=disabled memcached=disabled dashboard=disabled 
+172.16.1.5 hostname=ubuntu-04 mysql=disabled keystone=disabled novacompute=enabled glance=disabled memcached=disabled dashboard=disabled

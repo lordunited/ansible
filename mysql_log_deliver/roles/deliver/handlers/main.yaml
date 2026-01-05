@@ -1,0 +1,66 @@
+- name: mariadb_start
+  become: yes
+  service:
+    name: mariadb
+    state: started
+    enabled: yes
+
+- name: postgres_start
+  become: yes
+  service:
+    name: postgresql
+    state: started
+    enabled: yes
+
+
+- name: psql_restart
+  service:
+    name: postgresql
+    state: restarted
+  become: yes
+
+
+- name: mysql_restart
+  service:
+    name: mysql
+    state: restarted
+  become: yes
+
+
+- name: rsyslog_restart
+  service:
+    name: rsyslog
+    state: restarted
+  become: yes
+
+
+
+- name: zookeeper_restart
+  service:
+    name: zookeeper
+    state: restarted
+  become: yes
+
+
+
+- name: kafka_restart
+  service:
+    name: kafka
+    state: restarted
+  become: yes
+
+
+- name: kafka_start
+  become: yes
+  service:
+    name: kafka
+    state: started
+    enabled: yes
+
+- name: zookeeper_start
+  become: yes
+  service:
+    name: zookeeper
+    state: started
+    enabled: yes
+

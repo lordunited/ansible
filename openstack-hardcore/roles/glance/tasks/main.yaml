@@ -11,6 +11,35 @@
     - glance == "enabled"
 
 
+- name: "Update glance store  with lineinfile"
+  lineinfile:
+    path: "/etc/glance/glance-api.conf"
+    regexp: '^#?\s*stores\s*='
+    line: "stores = file,http"
+    insertafter: '^\[glance_store\]'
+  when: glance == "enabled"
+  tags: [ glance ]
+
+
+- name: "Update glance default_store  with lineinfile"
+  lineinfile:
+    path: "/etc/glance/glance-api.conf"
+    regexp: '^#?\s*default_store\s*='
+    line: "default_store = file"
+    insertafter: '^\[glance_store\]'
+  when: glance == "enabled"
+  tags: [ glance ]
+
+
+- name: "Update glance filesystem_store_datadir  with lineinfile"
+  lineinfile:
+    path: "/etc/glance/glance-api.conf"
+    regexp: '^#?\s*filesystem_store_datadir\s*='
+    line: "filesystem_store_datadir = /var/lib/glance/images/"
+    insertafter: '^\[glance_store\]'
+  when: glance == "enabled"
+  tags: [ glance ]
+
 
 - name:  -----Configure Keystone db connection -----
   lineinfile:
@@ -22,14 +51,29 @@
   when: glance == "enabled"
   tags: [ glance ]
 
-- name: "Update auth_url with lineinfile"
+
+# - name: "Update auth_url with lineinfile"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: '^#?\s*auth_url\s*='
+#     line: "auth_url = http://{{ controller_admin_address }}:5000"
+#     insertafter: '^\[keystone_authtoken\]'
+#   when: glance == "enabled"
+#   tags: [ glance ]
+
+
+- name: "Fix auth_url and add missing keystone parameters"
   lineinfile:
     path: "/etc/glance/glance-api.conf"
-    regexp: '^#?\s*auth_url\s*='
-    line: "auth_url = http://{{ controller_admin_address }}:35357"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
     insertafter: '^\[keystone_authtoken\]'
+  loop:
+    - { regexp: '(?i)^\s*#?\s*www_authenticate_uri\s*=.*', line: "www_authenticate_uri = http://{{ controller_admin_address }}:5000" }
+    - { regexp: '(?i)^\s*#?\s*auth_url\s*=.*', line: "auth_url = http://{{ controller_admin_address }}:5000" }
   when: glance == "enabled"
   tags: [ glance ]
+
 
 - name: "Update auth_type with lineinfile"
   lineinfile:
@@ -40,6 +84,7 @@
   when: glance == "enabled"
   tags: [ glance ]
 
+
 - name: "Update project_domain_name with lineinfile"
   lineinfile:
     path: "/etc/glance/glance-api.conf"
@@ -48,6 +93,7 @@
     insertafter: '^\[keystone_authtoken\]'
   when: glance == "enabled"
   tags: [ glance ]
+
 
 - name: "Update user_domain_name with lineinfile"
   lineinfile:
@@ -58,6 +104,7 @@
   when: glance == "enabled"
   tags: [ glance ]
 
+
 - name: "Update project_name with lineinfile"
   lineinfile:
     path: "/etc/glance/glance-api.conf"
@@ -66,6 +113,7 @@
     insertafter: '^\[keystone_authtoken\]'
   when: glance == "enabled"
   tags: [ glance ]
+
 
 - name: "Update username with lineinfile"
   lineinfile:
@@ -76,6 +124,7 @@
   when: glance == "enabled"
   tags: [ glance ]
 
+
 - name: "Update password with lineinfile"
   lineinfile:
     path: "/etc/glance/glance-api.conf"
@@ -84,6 +133,7 @@
     insertafter: '^\[keystone_authtoken\]'
   when: glance == "enabled"
   tags: [ glance ]
+
 
 - name: "Update flavor with lineinfile"
   lineinfile:
@@ -95,13 +145,22 @@
   tags: [ glance ]
 
 
+- name: "Update memcached_servers with lineinfile"
+  lineinfile:
+    path: "/etc/glance/glance-api.conf"
+    regexp: '^#?\s*memcached_servers\s*='
+    line: "memcached_servers = {{ memcached_ip }}"
+  when: glance == "enabled"
+  tags: [ glance ]
+
+
 - name: Check if Glance DB has been synced before
   stat:
     path: /etc/glance/.ansible_db_synced
   register: check_marker
   tags: [ glance ]
 
-# ۲. اجرای Sync فقط اگر فایل وجود نداشت
+
 - name: "----- Sync Glance Database via Shell -----"
   shell: |
     su -s /bin/sh -c "glance-manage db_sync" glance
@@ -113,7 +172,7 @@
   notify: glance_restart
   tags: [ glance ]
 
-# ۳. ایجاد فایل نشانگر با بررسی دقیق خروجی
+
 - name: Create history marker (The State File)
   file:
     path: /etc/glance/.ansible_db_synced
@@ -124,9 +183,7 @@
   become: yes
   when: 
     - glance == "enabled"
-    - sync_result is succeeded     # به جای .rc == 0 از succeeded استفاده کنید
-    - sync_result is not skipped   # حتماً چک کنید که تسک قبلی Skip نشده باشد
+    - sync_result is succeeded    
+    - sync_result is not skipped
   run_once: true
   tags: [ glance ]
-
-

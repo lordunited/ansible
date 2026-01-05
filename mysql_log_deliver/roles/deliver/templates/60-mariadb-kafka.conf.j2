@@ -1,0 +1,23 @@
+module(load="imfile")
+module(load="omkafka")
+input(type="imfile"
+      File="/var/log/mysql/general.log"
+      Tag="mariadb-query"
+      Severity="info"
+      Facility="local0")
+
+
+template(name="KafkaTemplate" type="list") {
+    constant(value="{ \"type\":\"mariadb\", \"message\":\"")
+    property(name="msg" format="json" droplastlf="on")
+    constant(value="\" }\n")
+}
+
+if ( $programname == 'mariadb-query') then {
+    action(type="omkafka"
+	   broker=["{{ kafka_broker }}"]
+           topic="{{ topic_name }}"
+           template="KafkaTemplate"
+           partitions.auto="on"
+           resubmitOnFailure="on")
+   }

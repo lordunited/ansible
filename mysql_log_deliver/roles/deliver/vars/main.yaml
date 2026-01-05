@@ -1,0 +1,12 @@
+kafka_bin_dir: "/opt/kafka/bin"
+pg_version: "16"
+venv_name: "venv"
+
+# Database Variables
+db_name: "my_app_db"
+db_user: "app_user"
+db_pass: "SecurePassword123"
+
+# Kafka Variables
+kafka_broker: "localhost:9092"
+topic_name: "mariadb_general_logs"

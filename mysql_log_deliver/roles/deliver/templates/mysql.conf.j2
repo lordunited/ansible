@@ -1,0 +1,15 @@
+[mysqld]
+# Enable General Query Logging
+general_log = 1
+general_log_file = /var/log/mysql/general.log
+
+# Enable Error Logging
+log_error = /var/log/mysql/error.log
+
+# Enable Slow Query Logging (Optional)
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time = 2
+
+# Ensure logs are written to files
+log_output = FILE

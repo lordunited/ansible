@@ -7,21 +7,10 @@
     - keystone
     - python3-openstackclient
     - apache2 
-  tags: [ installation ]
+  tags: [ keystone ]
   when: 
     - keystone == "enabled"
 
-
-- name: ----- install pre-requisite compute node -----
-  apt:
-    name: "{{ item }}"
-    state: present
-    update_cache: yes
-  with_items:
-    - nova-compute
-  tags: [ installation ]
-  when: 
-    - novacompute == "enabled"
 
 
 - name:  -----Configure Keystone db connection -----
@@ -32,6 +21,7 @@
     state: present
   notify: keystone_restart
   when: keystone == "enabled"
+  tags: [ keystone ]
 
 
 - name:  -----Configure Keystone token fernet -----
@@ -43,6 +33,7 @@
     insertafter: '^\[token\]'
   notify: keystone_restart
   when: keystone == "enabled"
+  tags: [ keystone ]
 
 
 
@@ -53,6 +44,7 @@
   when: 
     - keystone == "enabled"
   ignore_errors: yes
+  tags: [ keystone ]
 
 
 
@@ -61,9 +53,11 @@
   async: 300
   run_once: true
   when: 
-    - not keystone_init_state.stat.exists
     - keystone == "enabled"
+    - keystone_init_state is not skipped
     - keystone_init_state.stat is defined
+    - not keystone_init_state.stat.exists
+  tags: [ keystone ]
 
 
 
@@ -73,6 +67,7 @@
   when: 
     - not keystone_init_state.stat.exists 
     - keystone == "enabled"
+  tags: [ keystone ]
 
 
 
@@ -84,16 +79,21 @@
   when: 
     - not keystone_init_state.stat.exists 
     - keystone == "enabled"
+  tags: [ keystone ]
 
 
 
 - name: Bootstrap Keystone
   shell: >
-    keystone-manage bootstrap --bootstrap-password {{ keystone_admin_password }}
+    keystone-manage bootstrap 
+    --bootstrap-password  {{ keystone_admin_password }} 
+    --bootstrap-project-name admin 
+    --bootstrap-role-name admin 
+    --bootstrap-service-name keystone 
+    --bootstrap-region-id RegionOne 
     --bootstrap-admin-url http://{{ controller_admin_address }}:5000/v3/
     --bootstrap-internal-url http://{{ controller_internal_address }}:5000/v3/
-    --bootstrap-public-url http://{{ controller_public_address }}:5000/v3/
-    --bootstrap-region-id RegionOne
+    --bootstrap-public-url http://{{ controller_public_address }}:5000/v3/  
   become: yes
   run_once: true
   args:
@@ -101,6 +101,7 @@
   when: 
     - keystone == "enabled"
     - not keystone_init_state.stat.exists
+  tags: [ keystone ]
 
 
 - name: ----check keystone functionality------
@@ -114,6 +115,7 @@
   when: 
     - keystone == "enabled"
     - not keystone_init_state.stat.exists
+  tags: [ keystone ]
 
 - name: Create history marker (The State File)
   file:
@@ -127,6 +129,7 @@
     - not keystone_init_state.stat.exists 
     - keystone == "enabled"
   run_once: true
+  tags: [ keystone ]
 
 
 
@@ -142,6 +145,8 @@
   when: 
     - keystone == "enabled"
     - not keystone_init_state.stat.exists 
+  tags: [ keystone ]
+
 
 
 - name: ---add admin role to  "{{ controller_os_project_name }}" 
@@ -160,6 +165,9 @@
     - keystone == "enabled"
     - not keystone_init_state.stat.exists 
   ignore_errors: yes
+  tags: [ keystone ]
+
+
 
 # - name: -------- create new services in "{{ controller_os_user_domain_name}}" ---------
 #   shell: >
@@ -196,6 +204,7 @@
     - not keystone_init_state.stat.exists 
   tags: 
     - users
+  tags: [ keystone ]
 
 - name: check user creation
   shell: >
@@ -206,6 +215,7 @@
   when: 
     - keystone == "enabled"
   ignore_errors: yes
+  tags: [ keystone ]
 
 
 - name: ------- create new users in keystone -------
@@ -227,10 +237,9 @@
     - cinder
   when: 
     - keystone == "enabled"
-    - check_users.rc != 0  
+    - check_users.rc != 1 
 
-  tags: 
-    - users
+  tags: [ keystone ]
   ignore_errors: yes
 
 - name: check user creation
@@ -241,6 +250,7 @@
   register: check_users
   when: 
     - keystone == "enabled"
+  tags: [ keystone ]
 
 
 
@@ -257,7 +267,7 @@
   when:
     - keystone == "enabled"
     - check_users.rc == 0  
-  tags: [ users ]
+  tags: [ keystone ]
 
 
 - name: check services creation
@@ -268,7 +278,7 @@
   register: check_services
   when: 
     - keystone == "enabled"
-  tags: [ service ]
+  tags: [ keystone ]
   ignore_errors: yes
 
 
@@ -286,7 +296,7 @@
   when:
     - keystone == "enabled"
     - check_services.rc == 1   
-  tags: [ service ]
+  tags: [ keystone ]
 
 
 - name: check endpoint creation
@@ -297,7 +307,9 @@
     --os-user-domain-name "Default"
     --os-project-domain-name "Default"  endpoint list | grep -E "nova|keystone|glance|cinder|keystone"
   register: check_endpoint
-  tags: [ endpoint ]
+  tags: [ keystone ]
+  when:
+    - keystone == "enabled"
 
 
 
@@ -318,7 +330,7 @@
     - keystone == "enabled"
     - check_endpoint.rc == 1   
 
-  tags: [ endpoint ]
+  tags: [ keystone ]
 
 
 
@@ -341,7 +353,7 @@
 
     # - controller_os_project_name_state.rc == 0
     # - not keystone_init_state.stat.exists 
-  tags: [ endpoint ]
+  tags: [ keystone ]
 
 
 - name: Create OpenStack Services admin  Endpoints
@@ -362,6 +374,6 @@
 
     # - controller_os_project_name_state.rc == 0
     # - not keystone_init_state.stat.exists 
-  tags: [ endpoint ]
+  tags: [ keystone ]
   async: 30
   poll: 0

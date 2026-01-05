@@ -1,0 +1,105 @@
+- name: ----- install pre-requisite  -----
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - openstack-dashboard
+  tags: [ dashboard ]
+  when: dashboard == "enabled"
+
+
+- name: Configure OPENSTACK_HOST in Horizon
+  lineinfile:
+    path: /etc/openstack-dashboard/local_settings.py
+    regexp: '^OPENSTACK_HOST ='
+    line: 'OPENSTACK_HOST = "{{ controller_internal_address }}:5000"'
+    state: present
+  become: yes
+  notify: apache_restart
+  tags: [ dashboard ]
+  when: dashboard == "enabled"
+
+
+- name: Configure SESSION_ENGINE in Horizon
+  lineinfile:
+    path: /etc/openstack-dashboard/local_settings.py
+    regexp: '^SESSION_ENGINE ='
+    line: SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    state: present
+  become: yes
+  notify: apache_restart
+  tags: [ dashboard ]
+  when: dashboard == "enabled"
+
+
+- name: Configure LOCATION in Horizon
+  replace:
+    path: /etc/openstack-dashboard/local_settings.py
+    regexp: "'LOCATION': '127.0.0.1:11211'"
+    replace: "'LOCATION': '{{ memcached_ip }}:11211'"
+  become: yes
+  notify: apache_restart
+  tags: [ dashboard ]
+  when: dashboard == "enabled"
+
+
+- name: Configure OPENSTACK_KEYSTONE_DEFAULT_DOMAIN in Horizon
+  lineinfile:
+    path: /etc/openstack-dashboard/local_settings.py
+    regexp: '^OPENSTACK_KEYSTONE_DEFAULT_DOMAIN ='
+    line: OPENSTACK_KEYSTONE_DEFAULT_DOMAIN = 'Default'
+    state: present
+  become: yes
+  notify: apache_restart
+  tags: [ dashboard ]
+  when: dashboard == "enabled"
+
+
+- name: Configure OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT in Horizon
+  lineinfile:
+    path: /etc/openstack-dashboard/local_settings.py
+    regexp: '^OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT ='
+    line: OPENSTACK_KEYSTONE_MULTIDOMAIN_SUPPORT = 'True'
+    state: present
+  become: yes
+  notify: apache_restart
+  tags: [ dashboard ]
+  when: dashboard == "enabled"
+
+
+- name: Configure TIME_ZONE in Horizon
+  lineinfile:
+    path: /etc/openstack-dashboard/local_settings.py
+    regexp: '^TIME_ZONE ='
+    line: TIME_ZONE = "{{ timezone }}"
+    state: present
+  become: yes
+  notify: apache_restart
+  tags: [ dashboard ]
+  when: dashboard == "enabled"
+
+
+- name: Configure OPENSTACK_HOST in Horizon
+  lineinfile:
+    path: /etc/openstack-dashboard/local_settings.py
+    regexp: '^OPENSTACK_HOST ='
+    line: 'OPENSTACK_HOST = "{{ controller_internal_address }}"'
+    state: present
+  become: yes
+  notify: apache_restart
+  tags: [ dashboard ]
+  when: dashboard == "enabled"
+
+
+- name: Fix permissions on Horizon static folder
+  file:
+    path: /var/lib/openstack-dashboard/static
+    owner: www-data
+    group: www-data
+    mode: '0755'
+    recurse: yes
+  become: yes
+  notify: apache_restart
+  tags: [ dashboard ]
+  when: dashboard == "enabled"
