@@ -9,4 +9,8 @@
    - glance
    - memcached
    - dashboard
+   - neutron
+   - rabbitmq
+   - nova
+
    

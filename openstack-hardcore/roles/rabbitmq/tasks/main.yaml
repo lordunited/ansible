@@ -1,0 +1,43 @@
+- name: ----- install pre-requisite  controll plane -----
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - rabbitmq-server
+  notify: rabbitmq_restart
+  tags: [ rabbitmq ]
+  when: 
+    - rabbitmq == "enabled"
+
+- name: enable rabbitmq mangement plugin
+  shell: rabbitmq-plugins enable rabbitmq_management
+  notify: rabbitmq_restart
+  tags: [ rabbitmq ]
+  when: 
+    - rabbitmq == "enabled"
+
+
+
+
+- name: create admin user
+  shell: "{{ item }}"
+  with_items:
+    - rabbitmqctl list_users | grep -w "admin"
+  tags: [ rabbitmq ]
+  when: 
+    - rabbitmq == "enabled"
+  register: rabbitmq_user
+
+
+- name: create admin user
+  shell: "{{ item }}"
+  with_items:
+    - rabbitmqctl add_user "{{ rabbitmq_admin_user }}" "{{ rabbitmq_admin_password }}"
+    - rabbitmqctl set_user_tags "{{ rabbitmq_admin_user }}" administrator
+    - rabbitmqctl set_permissions -p / "{{ rabbitmq_admin_user }}" ".*" ".*" ".*"
+  tags: [ rabbitmq ]
+  when: 
+    - rabbitmq == "enabled"
+    - rabbitmq_user.rc != 0
+

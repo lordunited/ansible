@@ -1,0 +1,377 @@
+- name: ----- install pre-requisite  controll plane -----
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - neutron-server
+    - neutron-plugin-ml2
+    - neutron-openvswitch-agent 
+    - neutron-dhcp-agent
+    - neutron-metadata-agent
+    - openvswitch-switch
+    - neutron-l3-agent 
+    - neutron-metadata-agent
+  tags: [ neutron ]
+  when: 
+    - neutron_controll == "enabled"
+
+- name: ----- install pre-requisite  compute plane -----
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - openvswitch-switch/
+    - neutron-openvswitch-agent
+  tags: [ neutron ]
+  when: 
+    - neutron_compute == "enabled"
+
+
+- name: "Update connection with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*connection\s*='
+    line: "connection = mysql+pymysql://{{ neutron_user_db_user }}:{{ neutron_user_db_password  }}@{{ neutron_db_address }}/neutron"
+    insertafter: '^\[\database\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update nova_metadata_host with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*nova_metadata_host\s*='
+    line: "nova_metadata_host = {{ neutron_controller_address }}"
+    insertafter: '^\[\database\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+
+- name: "Update metadata_proxy_shared_secret with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*metadata_proxy_shared_secret\s*='
+    line: "metadata_proxy_shared_secret = METADATA_SECRET"
+    insertafter: '^\[\database\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+
+
+
+- name: "Update auth_url with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*auth_url\s*='
+    line: "auth_url = http://keystone_address:5000"
+    insertafter: '^\[\neutron\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update auth_type with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*auth_type\s*='
+    line: "auth_type = password"
+    insertafter: '^\[\neutron\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update project_domain_name with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*project_domain_name\s*='
+    line: "project_domain_name = Default"
+    insertafter: '^\[\neutron\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update user_domain_name with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*user_domain_name\s*='
+    line: "user_domain_name = Default"
+    insertafter: '^\[\neutron\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+- name: "Update connection with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*region_name\s*='
+    line: "region_name = RegionOne"
+    insertafter: '^\[\neutron\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+
+- name: "Update project_name with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*project_name\s*='
+    line: "project_name = service
+"
+    insertafter: '^\[\neutron\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+
+- name: "Update username with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*username\s*='
+    line: "username = {{ neutron_controller_user }}"
+    insertafter: '^\[\neutron\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update password with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*password\s*='
+    line: "password = {{ neutron_controller_password }}"
+    insertafter: '^\[\neutron\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update service_metadata_proxy with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*service_metadata_proxy\s*='
+    line: "service_metadata_proxy = true"
+    insertafter: '^\[\neutron\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update metadata_proxy_shared_secret with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*metadata_proxy_shared_secret\s*='
+    line: "metadata_proxy_shared_secret = METADATA_SECRET"
+    insertafter: '^\[\neutron\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+
+
+- name: "Update rabbitmq_address with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*rabbitmq_address\s*='
+    line: "transport_url = rabbit://{{ rabbitmq_admin_user }}:{{ rabbitmq_admin_password }}@{ rabbitmq_address }}"
+    insertafter: '^\[\default\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+
+- name: "Update www_authenticate_uri with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*www_authenticate_uri\s*='
+    line: "www_authenticate_uri = http://{{ keystone_address }}:5000"
+    insertafter: '^\[\keystone_authtoken\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update auth_url with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*auth_url\s*='
+    line: "auth_url = http://{{ keystone_address }}:5000"
+    insertafter: '^\[\keystone_authtoken\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update memcached_servers with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*memcached_servers\s*='
+    line: "memcached_servers = {{ memcached_adddress }}:11211"
+    insertafter: '^\[\keystone_authtoken\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+  
+- name: "Update auth_type with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*auth_type\s*='
+    line: "auth_type = password"
+    insertafter: '^\[\keystone_authtoken\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update project_domain_name with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*project_domain_name\s*='
+    line: "project_domain_name = Default"
+    insertafter: '^\[\keystone_authtoken\]'
+  when: 
+    - neutron_controll == "keystone_authtoken"
+  tags: [ neutron ]
+
+
+- name: "Update user_domain_name with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*user_domain_name\s*='
+    line: "user_domain_name = Default"
+    insertafter: '^\[\default\]'
+  when: 
+    - neutron_controll == "keystone_authtoken"
+  tags: [ neutron ]
+
+- name: "Update project_name with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*project_name\s*='
+    line: "project_name = service"
+    insertafter: '^\[\keystone_authtoken\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update username with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*username\s*='
+    line: "username = {{ neutron_keystone_user }}"
+    insertafter: '^\[\keystone_authtoken\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+
+- name: "Update rabbitmq_address with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*password\s*='
+    line: "password = {{  neutron_keystone_password }}"
+    insertafter: '^\[\keystone_authtoken\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+
+
+- name: "Update auth_url with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*auth_url\s*='
+    line: "auth_url = http://{{ keystone_address }}:5000"
+    insertafter: '^\[\nova\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update auth_type with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*auth_type\s*='
+    line: "auth_type = password"
+    insertafter: '^\[\nova\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+- name: "Update project_domain_name with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*project_domain_name\s*='
+    line: "project_domain_name = Default"
+    insertafter: '^\[\nova\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update user_domain_name with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*user_domain_name\s*='
+    line: "user_domain_name = Default"
+    insertafter: '^\[\nova\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update region_name with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*region_name\s*='
+    line: "region_name = RegionOne"
+    insertafter: '^\[\nova\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+  
+- name: "Update project_name with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*project_name\s*='
+    line: "project_name = service"
+    insertafter: '^\[\nova\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update username with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*username\s*='
+    line: "username = {{  nova_keystone_password }}"
+    insertafter: '^\[\nova\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+- name: "Update password with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*password\s*='
+    line: "password = {{  nova_keystone_password }}"
+    insertafter: '^\[\nova\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+
+
+- name: "Update lock_path with lineinfile"
+  lineinfile:
+    path: "/etc/neutron/neutron.conf"
+    regexp: '^#?\s*lock_path\s*='
+    line: "lock_path = /var/lib/neutron/tmp"
+    insertafter: '^\[\oslo_concurrency\]'
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+
+
+
+
+- name: run sync db for neutron
+  shell: |
+    /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
+  when: 
+    - neutron_controll == "enabled"
+  notify: glance_restart
+  tags: [ neutron ]

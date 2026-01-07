@@ -1,0 +1,16 @@
+neutron_user_db_user: "neutron"
+neutron_user_db_password: "YourSecurePasswordHERE"
+neutron_keystone_user: neutron 
+neutron_keystone_password: YourSecurePasswordHERE
+neutron_db_address: "172.16.1.2"
+neutron_controller_address: "172.16.1.2"
+neutron_controller_user: "neutron"
+neutron_controller_password: "YourSecurePasswordHERE"
+keystone_address: "172.16.1.2"
+rabbitmq_address: "172.16.1.2"
+rabbitmq_username: admin
+rabbitmq_password: admin
+keystone_username: keystone
+keystone_password: "YourSecurePasswordHERE"
+keystone_address: "172.16.1.2"
+memcached_adddress: "172.16.1.2"

@@ -187,3 +187,7 @@
     - sync_result is not skipped
   run_once: true
   tags: [ glance ]
+
+#You should add this under auth_token
+# project_domain_name = Default
+# user_domain_name = Default

@@ -1,4 +1,4 @@
- glance_db_user: "glance"
- glance_db_password: "YourSecurePasswordHERE"
- glance_db_address: "172.16.1.2"
- memcached_ip: 172.16.1.2
+glance_db_user: "glance"
+glance_db_password: "YourSecurePasswordHERE"
+glance_db_address: "172.16.1.2"
+memcached_ip: 172.16.1.2
