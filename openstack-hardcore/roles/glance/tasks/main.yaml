@@ -6,50 +6,77 @@
   with_items:
     - glance
     - python3-glanceclient  
+    - python3-rbd #rbd driver for glance
   tags: [ glance ]
   when: 
     - glance == "enabled"
 
 
-- name: "Update glance store  with lineinfile"
-  lineinfile:
-    path: "/etc/glance/glance-api.conf"
-    regexp: '^#?\s*stores\s*='
-    line: "stores = file,http"
-    insertafter: '^\[glance_store\]'
-  when: glance == "enabled"
-  tags: [ glance ]
 
-
-- name: "Update glance default_store  with lineinfile"
-  lineinfile:
-    path: "/etc/glance/glance-api.conf"
-    regexp: '^#?\s*default_store\s*='
-    line: "default_store = file"
-    insertafter: '^\[glance_store\]'
-  when: glance == "enabled"
-  tags: [ glance ]
-
-
-- name: "Update glance filesystem_store_datadir  with lineinfile"
-  lineinfile:
-    path: "/etc/glance/glance-api.conf"
-    regexp: '^#?\s*filesystem_store_datadir\s*='
-    line: "filesystem_store_datadir = /var/lib/glance/images/"
-    insertafter: '^\[glance_store\]'
-  when: glance == "enabled"
-  tags: [ glance ]
-
-
-- name:  -----Configure Keystone db connection -----
-  lineinfile:
-    path: /etc/glance/glance-api.conf
-    regexp: '^connection\s*='
-    line: "connection = mysql+pymysql://{{ glance_db_user }}:{{ glance_db_password }}@{{ glance_db_address }}/glance"
-    state: present
+- name: Deploy Memcached configuration
+  template:
+    src: glance-api.conf.j2
+    dest: /etc/glance/glance-api.conf
+    owner: glance
+    group: glance
+    mode: '0640'
   notify: glance_restart
-  when: glance == "enabled"
   tags: [ glance ]
+  when: 
+    - glance == "enabled"
+
+
+# - name: "Update glance store  with lineinfile"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: '^#?\s*stores\s*='
+#     line: "stores = file"
+#     insertafter: '^\[glance_store\]'
+#   when: glance == "enabled"
+#   tags: [ glance ]
+
+
+# - name: "#IMPORTENT# Update glance default_store  with lineinfile"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: '^#?\s*default_store\s*='
+#     line: "default_store = file"
+#     insertafter: '^\[glance_store\]'
+#   when: glance == "enabled"
+#   tags: [ glance ]
+
+
+# - name: "Update glance filesystem_store_datadir  with lineinfile"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: '^#?\s*filesystem_store_datadir\s*='
+#     line: "filesystem_store_datadir = /var/lib/glance/images/"
+#     insertafter: '^\[glance_store\]'
+#   when: glance == "enabled"
+#   tags: [ glance ]
+
+
+
+
+# - name: "Update glance filesystem_store_datadir  with lineinfile"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: '^#?\s*container_formats\s*='
+#     line: "container_formats = ami,ari,aki,bare,ovf,ova,docker,compressed"
+#     insertafter: '^\[container_formats\]'
+#   when: glance == "enabled"
+#   tags: [ glance ]
+
+
+# - name:  -----Configure Keystone db connection -----
+#   lineinfile:
+#     path: /etc/glance/glance-api.conf
+#     regexp: '^connection\s*='
+#     line: "connection = mysql+pymysql://{{ glance_db_user }}:{{ glance_db_password }}@{{ glance_db_address }}/glance"
+#     state: present
+#   notify: glance_restart
+#   when: glance == "enabled"
+#   tags: [ glance ]
 
 
 # - name: "Update auth_url with lineinfile"
@@ -62,96 +89,91 @@
 #   tags: [ glance ]
 
 
-- name: "Fix auth_url and add missing keystone parameters"
-  lineinfile:
-    path: "/etc/glance/glance-api.conf"
-    regexp: "{{ item.regexp }}"
-    line: "{{ item.line }}"
-    insertafter: '^\[keystone_authtoken\]'
-  loop:
-    - { regexp: '(?i)^\s*#?\s*www_authenticate_uri\s*=.*', line: "www_authenticate_uri = http://{{ controller_admin_address }}:5000" }
-    - { regexp: '(?i)^\s*#?\s*auth_url\s*=.*', line: "auth_url = http://{{ controller_admin_address }}:5000" }
-  when: glance == "enabled"
-  tags: [ glance ]
+# - name: "Fix auth_url and add missing keystone parameters"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: "{{ item.regexp }}"
+#     line: "{{ item.line }}"
+#     insertafter: '^\[keystone_authtoken\]'
+#   loop:
+#     - { regexp: '(?i)^\s*#?\s*www_authenticate_uri\s*=.*', line: "www_authenticate_uri = http://{{ controller_admin_address }}:5000" }
+#     - { regexp: '(?i)^\s*#?\s*auth_url\s*=.*', line: "auth_url = http://{{ controller_admin_address }}:5000" }
+#   when: glance == "enabled"
+#   tags: [ glance ]
 
 
-- name: "Update auth_type with lineinfile"
-  lineinfile:
-    path: "/etc/glance/glance-api.conf"
-    regexp: '^#?\s*auth_type\s*='
-    line: "auth_type = password"
-    insertafter: '^\[keystone_authtoken\]'
-  when: glance == "enabled"
-  tags: [ glance ]
+# - name: "Update auth_type with lineinfile"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: '^#?\s*auth_type\s*='
+#     line: "auth_type = password"
+#     insertafter: '^\[keystone_authtoken\]'
+#   when: glance == "enabled"
+#   tags: [ glance ]
 
 
-- name: "Update project_domain_name with lineinfile"
-  lineinfile:
-    path: "/etc/glance/glance-api.conf"
-    regexp: '^#?\s*project_domain_name\s*='
-    line: "project_domain_name = default"
-    insertafter: '^\[keystone_authtoken\]'
-  when: glance == "enabled"
-  tags: [ glance ]
+# - name: "Update project_domain_name with lineinfile"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: '^#?\s*project_domain_name\s*='
+#     line: "project_domain_name = default"
+#     insertafter: '^\[keystone_authtoken\]'
+#   when: glance == "enabled"
+#   tags: [ glance ]
 
 
-- name: "Update user_domain_name with lineinfile"
-  lineinfile:
-    path: "/etc/glance/glance-api.conf"
-    regexp: '^#?\s*user_domain_name\s*='
-    line: "user_domain_name = default"
-    insertafter: '^\[keystone_authtoken\]'
-  when: glance == "enabled"
-  tags: [ glance ]
+# - name: "Update user_domain_name with lineinfile"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: '^#?\s*user_domain_name\s*='
+#     line: "user_domain_name = default"
+#     insertafter: '^\[keystone_authtoken\]'
+#   when: glance == "enabled"
+#   tags: [ glance ]
 
 
-- name: "Update project_name with lineinfile"
-  lineinfile:
-    path: "/etc/glance/glance-api.conf"
-    regexp: '^#?\s*project_name\s*='
-    line: "project_name = service"
-    insertafter: '^\[keystone_authtoken\]'
-  when: glance == "enabled"
-  tags: [ glance ]
+# - name: "Update project_name with lineinfile"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: '^#?\s*project_name\s*='
+#     line: "project_name = service"
+#     insertafter: '^\[keystone_authtoken\]'
+#   when: glance == "enabled"
+#   tags: [ glance ]
 
 
-- name: "Update username with lineinfile"
-  lineinfile:
-    path: "/etc/glance/glance-api.conf"
-    regexp: '^#?\s*username\s*='
-    line: "username = {{ glance_db_user }}"
-    insertafter: '^\[keystone_authtoken\]'
-  when: glance == "enabled"
-  tags: [ glance ]
+# - name: "Update username with lineinfile"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: '^#?\s*username\s*='
+#     line: "username = {{ glance_db_user }}"
+#     insertafter: '^\[keystone_authtoken\]'
+#   when: glance == "enabled"
+#   tags: [ glance ]
 
 
-- name: "Update password with lineinfile"
-  lineinfile:
-    path: "/etc/glance/glance-api.conf"
-    regexp: '^#?\s*auth_uri\s*='
-    line: "password = {{ glance_db_password }}"
-    insertafter: '^\[keystone_authtoken\]'
-  when: glance == "enabled"
-  tags: [ glance ]
+# - name: "Update password with lineinfile"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: '^#?\s*auth_uri\s*='
+#     line: "password = {{ glance_db_password }}"
+#     insertafter: '^\[keystone_authtoken\]'
+#   when: glance == "enabled"
+#   tags: [ glance ]
 
 
-- name: "Update flavor with lineinfile"
-  lineinfile:
-    path: "/etc/glance/glance-api.conf"
-    regexp: '^#?\s*flavor\s*='
-    line: "flavor = keystone"
-    insertafter: '^\[paste_deploy\]'
-  when: glance == "enabled"
-  tags: [ glance ]
 
 
-- name: "Update memcached_servers with lineinfile"
-  lineinfile:
-    path: "/etc/glance/glance-api.conf"
-    regexp: '^#?\s*memcached_servers\s*='
-    line: "memcached_servers = {{ memcached_ip }}"
-  when: glance == "enabled"
-  tags: [ glance ]
+# - name: "Update memcached_servers with lineinfile"
+#   lineinfile:
+#     path: "/etc/glance/glance-api.conf"
+#     regexp: '^#?\s*memcached_servers\s*='
+#     line: "memcached_servers = {{ memcached_ip }}"
+#   when: glance == "enabled"
+#   tags: [ glance ]
+
+
+
 
 
 - name: Check if Glance DB has been synced before
@@ -191,3 +213,4 @@
 #You should add this under auth_token
 # project_domain_name = Default
 # user_domain_name = Default
+

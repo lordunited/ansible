@@ -9,9 +9,8 @@
     - curl
     - git
     - python3-pymysql
-  tags: [ installation ]
+  tags: [ mysql ]
   when: mysql == "enabled"
-
 
 
 - name: Allow MySQL to listen on all interfaces
@@ -23,22 +22,20 @@
   notify: mysql_restart
   when: 
     - mysql == "enabled"
-
+  tags: [ mysql ]
 
 - name: Check if MySQL is listening on 0.0.0.0:3306
   ansible.builtin.shell: ss -tunlp | grep -i "0.0.0.0:3306"
   register: mysql_check
   ignore_errors: true
   changed_when: false
+  tags: [ mysql ]
 
 - name: Print message if MySQL is running
   ansible.builtin.debug:
     msg: "MySQL is successfully listening on 0.0.0.0:3306"
   when: mysql_check.rc == 0
-
-
-
-
+  tags: [ mysql ]
 
 - name:  -----configure root password-----
   community.mysql.mysql_user:
@@ -51,8 +48,10 @@
   when: 
     - mysql == "enabled"
     - mysql_check.rc == 0
-
   ignore_errors: yes  # <--- Playbook will continue even if this fails
+  tags: [ mysql ]
+
+
 
 - name: Create OpenStack Databases
   community.mysql.mysql_db:
@@ -64,7 +63,10 @@
   when: 
     - mysql == "enabled"
     - mysql_check.rc == 0
+  tags: [ mysql ]
     
+
+
 - name: Create user with full access to the database
   community.mysql.mysql_user:
     name: "{{ item.user }}"
@@ -78,4 +80,4 @@
   when: 
     - mysql == "enabled"
     - mysql_check.rc == 0
-
+  tags: [ mysql ]

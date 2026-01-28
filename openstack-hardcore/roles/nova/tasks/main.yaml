@@ -5,355 +5,476 @@
     update_cache: yes
   with_items:
     - nova-compute
-  tags: [ nova ]
+  tags: [ nova_compute_install ]
+  when: 
+    - nova_compute == "enabled"
+
+
+- name: ----- install pre-requisite -----
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - nova-api
+    - nova-conductor
+    - nova-scheduler
+    - 
+  tags: [ nova_controll_install ]
   when: 
     - nova_controll == "enabled"
 
 
-
-
-- name: "Update rabbitmq_address with lineinfile for nova"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*rabbitmq_address\s*='
-    line: "transport_url = rabbit://{{ rabbitmq_admin_user }}:{{ rabbitmq_admin_password }}@{{ rabbitmq_address }}"
-    insertafter: '^\[DEFAULT\]'
+- name: Deploy nova controll configuration
+  template:
+    src: nova.conf.j2
+    dest: /etc/nova/nova.conf
+    owner: nova
+    group: nova
+    mode: '0640'
+  notify: "{{ item }}"
+  with_items:
+  - nova_control_restart
+  tags: [ nova_controll ]
   when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+     - nova_controll == "enabled"
 
-- name: "Update nova auth_url with lineinfile"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*auth_url\s*='
-    line: "auth_url = http://{{ keystone_address }}:5000"
-    insertafter: '^\[service_user\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
 
-- name: "Update nova auth_type with lineinfile"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*auth_type\s*='
-    line: "auth_type = password"
-    insertafter: '^\[service_user\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
 
-- name: "Update nova project_domain_name with lineinfile"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*project_domain_name\s*='
-    line: "project_domain_name = Default"
-    insertafter: '^\[service_user\]'
+- name: Deploy nova compute configuration
+  template:
+    src: nova.conf.j2
+    dest: /etc/nova/nova.conf
+    owner: nova
+    group: nova
+    mode: '0640'
+  notify: "{{ item }}"
+  with_items:
+  - nova_compute_restart
+  tags: [ nova_compute ]
   when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+    - nova_compute == "enabled"
 
-- name: "Update nova user_domain_name with lineinfile"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*user_domain_name\s*='
-    line: "user_domain_name = Default"
-    insertafter: '^\[service_user\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
 
-- name: "Update nova region_name with lineinfile"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*region_name\s*='
-    line: "region_name = RegionOne"
-    insertafter: '^\[service_user\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
 
-- name: "Update nova project_name with lineinfile"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*project_name\s*='
-    line: "project_name = service"
-    insertafter: '^\[service_user\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
 
-- name: "Update nova username with lineinfile"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*username\s*='
-    line: "username = {{ nova_controller_user }}"
-    insertafter: '^\[service_user\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+# - name: "Update rabbitmq_address with lineinfile for nova"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*transport_url\s*='
+#     line: "transport_url = rabbit://{{ rabbitmq_admin_user }}:{{ rabbitmq_admin_password }}@{{ rabbitmq_address }}"
+#     insertafter: '[DEFAULT]'
+#   when: 
+#     - nova_controll == "enabled" and nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
 
-- name: "Update nova password with lineinfile"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*password\s*='
-    line: "password = {{ nova_controller_password }}"
-    insertafter: '^\[service_user\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+# - name: "Update nova auth_url with lineinfile"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*auth_url\s*='
+#     line: "auth_url = http://{{ keystone_address }}:5000"
+#     insertafter: '^\[service_user\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
 
-- name: "Update nova service_metadata_proxy with lineinfile"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*service_metadata_proxy\s*='
-    line: "service_metadata_proxy = true"
-    insertafter: '^\[service_user\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
 
-- name: "Update nova metadata_proxy_shared_secret with lineinfile"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*metadata_proxy_shared_secret\s*='
-    line: "metadata_proxy_shared_secret = METADATA_SECRET"
-    insertafter: '^\[service_user\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+
+# - name: "Update nova auth_type with lineinfile"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*auth_type\s*='
+#     line: "auth_type = password"
+#     insertafter: '^\[service_user\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+
+# - name: "Update nova project_domain_name with lineinfile"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*project_domain_name\s*='
+#     line: "project_domain_name = Default"
+#     insertafter: '^\[service_user\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+
+# - name: "Update nova user_domain_name with lineinfile"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*user_domain_name\s*='
+#     line: "user_domain_name = Default"
+#     insertafter: '^\[service_user\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+
+# - name: "Update nova region_name with lineinfile"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*region_name\s*='
+#     line: "region_name = RegionOne"
+#     insertafter: '^\[service_user\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+
+# - name: "Update nova project_name with lineinfile"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*project_name\s*='
+#     line: "project_name = service"
+#     insertafter: '^\[service_user\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+
+# - name: "Update nova username with lineinfile"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*username\s*='
+#     line: "username = {{ nova_controller_user }}"
+#     insertafter: '^\[service_user\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+
+# - name: "Update nova password with lineinfile"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*password\s*='
+#     line: "password = {{ nova_controller_password }}"
+#     insertafter: '^\[service_user\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+
+# - name: "Update nova service_metadata_proxy with lineinfile"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*service_metadata_proxy\s*='
+#     line: "service_metadata_proxy = true"
+#     insertafter: '^\[service_user\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+
+# - name: "Update nova metadata_proxy_shared_secret with lineinfile"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*metadata_proxy_shared_secret\s*='
+#     line: "metadata_proxy_shared_secret = METADATA_SECRET"
+#     insertafter: '^\[service_user\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
 
   ######################IMPORTENT
-- name: "Update nova my_ip with lineinfile"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*my_ip\s*='
-    line: "my_ip = {{ host_ip }}"
-    insertafter: '^\[DEFAULT\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
-
-- name: "Update nova neutron auth_url with machine IP"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*auth_url\s*='
-    line: "auth_url = http://{{ keystone_address }}:5000"
-    insertafter: '^\[neutron\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
-
-- name: "Update nova neutron auth_type"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*auth_type\s*='
-    line: "auth_type = password"
-    insertafter: '^\[neutron\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
-
-- name: "Update nova neutron project_domain_name"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*project_domain_name\s*='
-    line: "project_domain_name = Default"
-    insertafter: '^\[neutron\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
-
-- name: "Update nova neutron user_domain_name"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*user_domain_name\s*='
-    line: "user_domain_name = Default"
-    insertafter: '^\[neutron\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
-
-- name: "Update nova neutron region_name"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*region_name\s*='
-    line: "region_name = RegionOne"
-    insertafter: '^\[neutron\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
-
-- name: "Update nova neutron project_name"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*project_name\s*='
-    line: "project_name = service"
-    insertafter: '^\[neutron\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
-
-- name: "Update nova neutron username"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*username\s*='
-    line: "username = {{ neutron_keystone_user }"
-    insertafter: '^\[neutron\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
-
-- name: "Update nova neutron password"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*password\s*='
-    line: "password = {{ neutron_keystone_password }}"
-    insertafter: '^\[neutron\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+# - name: "Update nova my_ip with lineinfile"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*my_ip\s*='
+#     line: "my_ip = {{ host_ip }}"
+#     insertafter: '^\[DEFAULT\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
 
 
 
-- name: "Update nova vnc enabled"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*enabled\s*='
-    line: "enabled = true"
-    insertafter: '^\[vnc\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+# - name: "Update nova neutron auth_url with machine IP"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*auth_url\s*='
+#     line: "auth_url = http://{{ keystone_address }}:5000"
+#     insertafter: '^\[neutron\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
 
-- name: "Update nova vnc server_listen"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*server_listen\s*='
-    line: "server_listen = 0.0.0.0"
-    insertafter: '^\[vnc\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+# - name: "Update nova neutron auth_type"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*auth_type\s*='
+#     line: "auth_type = password"
+#     insertafter: '^\[neutron\]'
+#   when: 
+#     - nova_controll == "enabled"
+#   tags: [ nova_controll,nova_compute ]
 
-- name: "Update nova vnc server_proxyclient_address"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*server_proxyclient_address\s*='
-    line: "server_proxyclient_address = {{ host_ip }}"
-    insertafter: '^\[vnc\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+# - name: "Update nova neutron project_domain_name"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*project_domain_name\s*='
+#     line: "project_domain_name = Default"
+#     insertafter: '^\[neutron\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
 
-- name: "Update nova vnc novncproxy_base_url"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*novncproxy_base_url\s*='
-    line: "novncproxy_base_url = http://{{ keystone_address }}:6080/vnc_auto.html"
-    insertafter: '^\[vnc\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+# - name: "Update nova neutron user_domain_name"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*user_domain_name\s*='
+#     line: "user_domain_name = Default"
+#     insertafter: '^\[neutron\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
 
-- name: "Update glance ip"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*api_servers\s*='
-    line: "api_servers = http://{{ glance_address }}:9292"
-    insertafter: '^\[vnc\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+# - name: "Update nova neutron region_name"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*region_name\s*='
+#     line: "region_name = RegionOne"
+#     insertafter: '^\[neutron\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+# - name: "Update nova neutron project_name"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*project_name\s*='
+#     line: "project_name = service"
+#     insertafter: '^\[neutron\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+# - name: "Update nova neutron username"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*username\s*='
+#     line: "username = {{ neutron_keystone_user }}"
+#     insertafter: '^\[neutron\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+# - name: "Update nova neutron password"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*password\s*='
+#     line: "password = {{ neutron_keystone_password }}"
+#     insertafter: '^\[neutron\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
 
 
 
-- name: "lock_path oslo_concurrency ip"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*lock_path\s*='
-    line: "lock_path =  /var/lib/nova/tmp"
-    insertafter: '^\[oslo_concurrency\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+# - name: "Update nova vnc enabled"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*enabled\s*='
+#     line: "enabled = true"
+#     insertafter: '^\[vnc\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+
+# - name: "Update nova vnc server_listen"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*server_listen\s*='
+#     line: "server_listen = 0.0.0.0"
+#     insertafter: '^\[vnc\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+# - name: "Update nova vnc server_proxyclient_address"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*server_proxyclient_address\s*='
+#     line: "server_proxyclient_address = {{ host_ip }}"
+#     insertafter: '^\[vnc\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+
+# - name: "Update nova vnc novncproxy_base_url"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*novncproxy_base_url\s*='
+#     line: "novncproxy_base_url = http://{{ keystone_address }}:6080/vnc_auto.html"
+#     insertafter: '^\[vnc\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+
+# - name: "Update glance ip"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*api_servers\s*='
+#     line: "api_servers = http://{{ glance_address }}:9292"
+#     insertafter: '^\[vnc\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+
+# - name: "lock_path oslo_concurrency ip"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*lock_path\s*='
+#     line: "lock_path =  /var/lib/nova/tmp"
+#     insertafter: '^\[oslo_concurrency\]'
+#   when: 
+#     - nova_controll == "enabled"
+#     - nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
  
 
-- name: "Update nova placement region_name"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*region_name\s*='
-    line: "region_name = RegionOne"
-    insertafter: '^\[placement\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+# - name: "Update nova placement region_name"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*region_name\s*='
+#     line: "region_name = RegionOne"
+#     insertafter: '[placement]'
+#   when: 
+#     - nova_controll == "enabled" and nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
 
-- name: "Update nova placement project_domain_name"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*project_domain_name\s*='
-    line: "project_domain_name = Default"
-    insertafter: '^\[placement\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
 
-- name: "Update nova placement project_name"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*project_name\s*='
-    line: "project_name = service"
-    insertafter: '^\[placement\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+# - name: "Update nova placement project_domain_name"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*project_domain_name\s*='
+#     line: "project_domain_name = Default"
+#     insertafter: '[placement]'
+#   when: 
+#     - nova_controll == "enabled" and nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
 
-- name: "Update nova placement auth_type"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*auth_type\s*='
-    line: "auth_type = password"
-    insertafter: '^\[placement\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
 
-- name: "Update nova placement user_domain_name"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*user_domain_name\s*='
-    line: "user_domain_name = Default"
-    insertafter: '^\[placement\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
+# - name: "Update nova placement project_name"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*project_name\s*='
+#     line: "project_name = service"
+#     insertafter: '[placement]'
+#   when: 
+#     - nova_controll == "enabled" and nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
 
-- name: "Update nova placement auth_url"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*auth_url\s*='
-    line: "auth_url = http://{{ keystone_address }}:5000/v3"
-    insertafter: '^\[placement\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
 
-- name: "Update nova placement username"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*username\s*='
-    line: "username = {{ placement_controller_user }}"
-    insertafter: '^\[placement\]'
-  when: 
-    - nova_controll == "enabled"
-  tags: [ nova ]
 
-- name: "Update nova placement password"
-  lineinfile:
-    path: "/etc/nova/nova.conf"
-    regexp: '^#?\s*password\s*='
-    line: "password = {{ placement_controller_password }}"
-    insertafter: '^\[placement\]'
+
+# - name: "Update nova placement auth_type"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*auth_type\s*='
+#     line: "auth_type = password"
+#     insertafter: '[placement]'
+#   when: 
+#     - nova_controll == "enabled" and nova_compute == "enabled"
+#   tags: [ nova_controll ,nova_compute]
+
+
+
+# - name: "Update nova placement user_domain_name"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*user_domain_name\s*='
+#     line: "user_domain_name = Default"
+#     insertafter: '[placement]'
+#   when: 
+#     - nova_controll == "enabled" and nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+# - name: "Update nova placement auth_url"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*auth_url\s*='
+#     line: "auth_url = http://{{ keystone_address }}:5000/v3"
+#     insertafter: '[placement]'
+#   when: 
+#     - nova_controll == "enabled" and nova_compute == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+# - name: "Update nova placement username"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*username\s*='
+#     line: "username = {{ placement_controller_user }}"
+#     insertafter: '[placement]'
+#   when: 
+#     - nova_controll == "enabled"
+#   tags: [ nova_controll,nova_compute ]
+
+
+# - name: "Update nova placement password"
+#   lineinfile:
+#     path: "/etc/nova/nova.conf"
+#     regexp: '^#?\s*password\s*='
+#     line: "password = {{ placement_controller_password }}"
+#     insertafter: '[placement]'
+#   when: 
+#     - nova_controll == "enabled"
+#   tags: [ nova_controll,nova_compute]
+- name: sync nova-api db 
+  shell: "{{ item }}"
+  tags: [ nova_controll,nova_compute]
   when: 
     - nova_controll == "enabled"
-  tags: [ nova ]
+  with_items:
+  - nova-manage api_db sync
+  - nova nova-manage cell_v2 map_cell0
+
+- name: sync nova db 
+  shell: nova-manage db sync
+  tags: [ nova_controll,nova_compute]
+  when: 
+    - nova_controll == "enabled"

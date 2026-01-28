@@ -12,5 +12,4 @@ rabbitmq_username: admin
 rabbitmq_password: admin
 keystone_username: keystone
 keystone_password: "YourSecurePasswordHERE"
-keystone_address: "172.16.1.2"
 memcached_adddress: "172.16.1.2"

@@ -1,22 +1,26 @@
 rabbitmq_admin_user: admin
 rabbitmq_admin_password: admin
 rabbitmq_address: 172.16.1.2
-nova_user_db_user: "neutron"
+nova_user_db_user: "nova"
 nova_user_db_password: "YourSecurePasswordHERE"
-nova_keystone_user: neutron 
+nova_database_address: "172.16.1.2"
+nova_keystone_user: nova 
 nova_keystone_password: YourSecurePasswordHERE
-nova_db_address: "172.16.1.2"
+nova_db_address: " 172.16.1.2"
 nova_controller_address: "172.16.1.2"
-nova_controller_user: "neutron"
+nova_controller_user: "nova"
 nova_controller_password: "YourSecurePasswordHERE"
 keystone_address: "172.16.1.2"
 keystone_username: keystone
 keystone_password: "YourSecurePasswordHERE"
-keystone_address: "172.16.1.2"
 memcached_adddress: "172.16.1.2"
 neutron_controller_address: "172.16.1.2"
 neutron_controller_user: "neutron"
 neutron_controller_password: "YourSecurePasswordHERE"
+placement_controller_password: "YourSecurePasswordHERE"
+placement_controller_user: "placement"
+placement_address: "172.16.1.2"
+glance_password: "YourSecurePasswordHERE"
+glance_user: "glance"
 glance_address: "172.16.1.2"
-placement_controller_password:
-placement_controller_user:
+controller_internal_address: "172.16.1.2"

@@ -1,0 +1,11 @@
+controller_os_auth_url: "http://172.16.1.2:5000/v3"
+controller_os_project_name: "admin"
+controller_os_username: "admin"
+controller_os_password: "YourSecurePasswordHERE"
+controller_os_user_domain_name: "default"
+placement_username: placement
+placement_password: "YourSecurePasswordHERE"
+placement_database_address: "172.16.1.2"
+controller_admin_address: "172.16.1.2"
+controller_internal_address: "172.16.1.2"
+controller_public_address: "172.16.1.2"

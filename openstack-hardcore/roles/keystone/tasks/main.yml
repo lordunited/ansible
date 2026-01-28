@@ -12,66 +12,114 @@
     - keystone == "enabled"
 
 
-
-- name:  -----Configure Keystone db connection -----
-  lineinfile:
-    path: /etc/keystone/keystone.conf
-    regexp: '^connection\s*='
-    line: "connection = mysql+pymysql://{{ keystone_db_user }}:{{ keystone_db_password }}@{{ keystone_db_address }}/keystone"
-    state: present
+- name: Deploy Memcached configuration
+  template:
+    src: keystone.conf.j2
+    dest: /etc/keystone/keystone.conf
+    owner: keystone
+    group: keystone
+    mode: '0640'
   notify: keystone_restart
-  when: keystone == "enabled"
   tags: [ keystone ]
+  when: 
+    - keystone == "enabled"
 
 
-- name:  -----Configure Keystone token fernet -----
-  lineinfile:
-    path: /etc/keystone/keystone.conf
-    regexp: '^#?\s*provider\s*=\s*fernet'
-    line: 'provider = fernet'    
-    state: present
-    insertafter: '^\[token\]'
-  notify: keystone_restart
-  when: keystone == "enabled"
-  tags: [ keystone ]
+# - name:  -----Configure Keystone db connection -----
+#   lineinfile:
+#     path: /etc/keystone/keystone.conf
+#     regexp: '^connection\s*='
+#     line: "connection = mysql+pymysql://{{ keystone_db_user }}:{{ keystone_db_password }}@{{ keystone_db_address }}/keystone"
+#     state: present
+#   notify: keystone_restart
+#   when: keystone == "enabled"
+#   tags: [ keystone ]
+
+
+# - name:  -----Configure Keystone token fernet -----
+#   lineinfile:
+#     path: /etc/keystone/keystone.conf
+#     regexp: '^#?\s*enabled\s*='
+#     line: 'enabled = true'    
+#     state: present
+#     insertafter: '^\[cache\]'
+#   notify: keystone_restart
+#   when: keystone == "enabled"
+#   tags: [ keystone ]
+
+
+# - name:  -----Configure Keystone memcache_servers-----
+#   lineinfile:
+#     path: /etc/keystone/keystone.conf
+#     regexp: '^#?\s*memcache_servers\s*='
+#     line: 'memcache_servers = {{ memcached_ip }}:11211'    
+#     state: present
+#     insertafter: '^\[cache\]'
+#   notify: keystone_restart
+#   when: keystone == "enabled"
+#   tags: [ keystone ]
 
 
 
-- name:  -----Configure driver credential token fernet -----
-  lineinfile:
-    path: /etc/keystone/keystone.conf
-    regexp: '^#?\s*driver\s*=\s*fernet'
-    line: 'driver = sql'    
-    state: present
-    insertafter: '^\[credential\]'
-  notify: keystone_restart
-  when: keystone == "enabled"
-  tags: [ keystone ]
+
+# - name:  -----Configure memcached_ip   -----
+#   lineinfile:
+#     path: /etc/keystone/keystone.conf
+#     regexp: '^#?\s*backend = dogpile.cache.null\s*='
+#     line: 'backend = dogpile.cache.memcached'    
+#     state: present
+#     insertafter: '^\[cache\]'
+#   notify: keystone_restart
+#   when: keystone == "enabled"
+#   tags: [ keystone ]
 
 
 
-- name:  -----Configure provider credential token fernet -----
-  lineinfile:
-    path: /etc/keystone/keystone.conf
-    regexp: '^#?\s*provider\s*=\s*fernet'
-    line: 'provider = fernet'    
-    state: present
-    insertafter: '^\[credential\]'
-  notify: keystone_restart
-  when: keystone == "enabled"
-  tags: [ keystone ]
+# - name:  -----Configure driver credential token fernet -----
+#   lineinfile:
+#     path: /etc/keystone/keystone.conf
+#     regexp: '^#?\s*driver\s*=\s*fernet'
+#     line: 'driver = sql'    
+#     state: present
+#     insertafter: '^\[credential\]'
+#   notify: keystone_restart
+#   when: keystone == "enabled"
+#   tags: [ keystone ]
+
+# - name:  -----Configure cache -----
+#   lineinfile:
+#     path: /etc/keystone/keystone.conf
+#     regexp: '^#?\s*driver\s*=\s*fernet'
+#     line: 'driver = sql'    
+#     state: present
+#     insertafter: '^\[cache\]'
+#   notify: keystone_restart
+#   when: keystone == "enabled"
+#   tags: [ keystone ]
 
 
-- name:  -----Configure key_repository credential token fernet -----
-  lineinfile:
-    path: /etc/keystone/keystone.conf
-    regexp: '^#?\s*key_repository\s*=\s*fernet'
-    line: 'key_repository = /etc/keystone/credential-keys/'    
-    state: present
-    insertafter: '^\[credential\]'
-  notify: keystone_restart
-  when: keystone == "enabled"
-  tags: [ keystone ]
+# - name:  -----Configure provider credential token fernet -----
+#   lineinfile:
+#     path: /etc/keystone/keystone.conf
+#     regexp: '^#?\s*provider\s*=\s*fernet'
+#     line: 'provider = fernet'    
+#     state: present
+#     insertafter: '^\[credential\]'
+#   notify: keystone_restart
+#   when: keystone == "enabled"
+#   tags: [ keystone ]
+
+
+# - name:  -----Configure key_repository credential token fernet -----
+#   lineinfile:
+#     path: /etc/keystone/keystone.conf
+#     regexp: '^#?\s*key_repository\s*=\s*fernet'
+#     line: 'key_repository = /etc/keystone/credential-keys/'    
+#     state: present
+#     insertafter: '^\[credential\]'
+#   notify: keystone_restart
+#   when: keystone == "enabled"
+#   tags: [ keystone ]
 
 
 
@@ -123,7 +171,7 @@
 
 - name: Bootstrap Keystone
   shell: >
-    keystone-manage bootstrap 
+    keystone-manage bootstrap R
     --bootstrap-password  {{ keystone_admin_password }} 
     --bootstrap-project-name admin 
     --bootstrap-role-name admin 
@@ -155,6 +203,9 @@
     - keystone == "enabled"
     - not keystone_init_state.stat.exists
   tags: [ keystone ]
+
+
+
 
 - name: Create history marker (The State File)
   file:
@@ -277,19 +328,8 @@
   when: 
     - keystone == "enabled"
     - check_users.rc != 1 
-
   tags: [ keystone ]
   ignore_errors: yes
-
-- name: check user creation
-  shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default" --os-project-domain-name "Default" user list | grep -E "admin|glance|nova|neutron|cinder"
-  register: check_users
-  when: 
-    - keystone == "enabled"
-  tags: [ keystone ]
 
 
 

@@ -2,4 +2,4 @@
   service: 
     name: glance-api
     state: restarted
-    enabledL: true
+    enabled: true

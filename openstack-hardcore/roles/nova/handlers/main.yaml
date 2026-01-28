@@ -1,0 +1,19 @@
+- name: nova_control_restart
+  service: 
+    name: "{{ item }}"
+    state: restarted
+    enabled: true
+  with_items:
+  - nova-scheduler
+  - nova-api
+  - nova-conductor
+
+
+
+- name: nova_compute_restart
+  service: 
+    name: "{{ item }}"
+    state: restarted
+    enabled: true
+  with_items:
+  - nova-compute

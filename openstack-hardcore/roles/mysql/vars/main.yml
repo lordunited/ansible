@@ -8,3 +8,8 @@ openstack_services:
   - { name: "glance", user: "glance", db: "glance", pass: "YourSecurePasswordHERE" }
   - { name: "neutron", user: "neutron", db: "neutron", pass: "YourSecurePasswordHERE" }
   - { name: "nova", user: "nova", db: "nova", pass: "YourSecurePasswordHERE",path: '/v2.1'  }
+  - { name: "nova_api", user: "nova", db: "nova_api", pass: "YourSecurePasswordHERE",path: '/v2.1'  }
+  - { name: "nova_cell0", user: "nova", db: "nova_cell0", pass: "YourSecurePasswordHERE",path: '/v2.1'  }
+
+  - { name: "placement", user: "placement", db: "placement", pass: "YourSecurePasswordHERE" }
+

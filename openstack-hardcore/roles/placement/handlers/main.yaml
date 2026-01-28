@@ -1,0 +1,5 @@
+- name: placement_restart
+  service: 
+    name: apache2
+    state: restarted
+    enabled: true

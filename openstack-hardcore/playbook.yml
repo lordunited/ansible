@@ -12,5 +12,5 @@
    - neutron
    - rabbitmq
    - nova
-
-   
+   - kvm
+   - placement

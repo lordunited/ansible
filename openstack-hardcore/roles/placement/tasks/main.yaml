@@ -1,0 +1,199 @@
+- name: ----- install placement -----
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - placement-api
+  tags: [ placement-install ]
+  when: 
+    - placement == "enabled"
+
+
+- name: check user creation
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default" --os-project-domain-name "Default" user list | grep -E "placement"
+  register: check_users_placement
+  when: 
+    - keystone == "enabled"
+  tags: [ placement ]
+
+
+
+- name: ----- create new user ------
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}" 
+    --os-project-name "{{ controller_os_project_name }}"
+    --os-username "{{ controller_os_username }}" 
+    --os-password "{{ controller_os_password }}" 
+    --os-user-domain-name "Default"
+    --os-project-domain-name "Default"
+    --os-identity-api-version 3 user create --domain default  "{{ placement_username }}" --password  "{{ placement_password }}"
+  when: 
+    - keystone == "enabled"
+    - check_users_placement.rc == 0  
+  tags: [ placement ]
+  ignore_errors: true
+
+
+
+- name: Add admin role to service users
+  shell: >
+      openstack --os-auth-url "{{ controller_os_auth_url }}"
+      --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
+      --os-user-domain-name "Default" --os-project-domain-name "Default"
+      role add --project "{{ controller_os_user_domain_name }}" 
+      --user "{{ placement_username }}" --user-domain "{{ controller_os_user_domain_name }}" admin      
+  register: role_add
+  when:
+    - keystone == "enabled"
+    - check_users_placement.rc == 0  
+  tags: [ placement ]
+
+
+- name: check placement service
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "admin"
+    --os-username "admin"
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default"
+    --os-project-domain-name "Default"
+    service list | grep placement | awk '{print $1}'
+  register: placement_service
+  failed_when: false
+  changed_when: false
+  tags: [ placement ]
+  when:
+    - keystone == "enabled"
+
+
+- name: create placement service
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "admin"
+    --os-username "admin"
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default"
+    --os-project-domain-name "Default"
+    service create
+    --name placement
+    --description "Placement API"
+    placement
+  when:
+    - keystone == "enabled"
+    - placement_service.stdout == ""
+  tags: [ placement ]
+
+
+
+- name: print placement service check output
+  debug:
+    msg: "Placement service IDs: {{ placement_service.stdout_lines }}"
+  when: keystone == "enabled"
+  tags: [ placement ]
+
+
+
+- name: check endpoint creation
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "admin"
+    --os-username "admin"
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default"
+    --os-project-domain-name "Default"
+    endpoint list | grep -E "placement"
+  register: check_endpoint
+  failed_when: check_endpoint.rc > 1
+  changed_when: false
+  tags: [ placement ]
+  when:
+    - keystone == "enabled"
+
+
+
+- name: Create OpenStack internal Placement endpoint
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "admin"
+    --os-username "admin"
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default"
+    --os-project-domain-name "Default"
+    endpoint create
+    --region RegionOne
+    {{ item.type }}
+    internal
+    http://{{ controller_admin_address }}:{{ item.port }}{{ item.path | default('') }}
+  with_items:
+    - { name: 'placement', type: 'placement', port: '8778' }
+  when:
+    - keystone == "enabled"
+    - check_endpoint.rc == 1
+  tags: [ placement ]
+
+
+
+
+
+- name: Create OpenStack public Placement endpoint
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "admin"
+    --os-username "admin"
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default"
+    --os-project-domain-name "Default"
+    endpoint create
+    --region RegionOne
+    {{ item.type }}
+    public
+    http://{{ controller_admin_address }}:{{ item.port }}{{ item.path | default('') }}
+  with_items:
+    - { name: 'placement', type: 'placement', port: '8778' }
+  when:
+    - keystone == "enabled"
+#    - check_endpoint.rc == 1
+  tags: [ placement ]
+
+
+
+
+- name: Create OpenStack admin Placement endpoint
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "admin"
+    --os-username "admin"
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default"
+    --os-project-domain-name "Default"
+    endpoint create
+    --region RegionOne
+    {{ item.type }}
+    admin
+    http://{{ controller_admin_address }}:{{ item.port }}{{ item.path | default('') }}
+  with_items:
+    - { name: 'placement', type: 'placement', port: '8778' }
+  when:
+    - keystone == "enabled"
+#    - check_endpoint.rc == 1
+  tags: [ placement ]
+
+
+
+
+- name: Deploy placement compute configuration
+  template:
+    src: placement.conf.j2
+    dest: /etc/placement/placement.conf
+    owner: placement
+    group: placement
+    mode: '0640'
+  notify: placement_restart
+  tags: [ placement ]
+  when: 
+    - placement == "enabled"
+
