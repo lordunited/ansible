@@ -1,306 +1,272 @@
-- name: ----- install pre-requisite  controll plane -----
-  apt:
-    name: "{{ item }}"
-    state: present
-    update_cache: yes
-  with_items:
-    - keystone
-    - python3-openstackclient
-    - apache2 
-  tags: [ keystone ]
-  when: 
-    - keystone == "enabled"
-
-
-- name: Deploy Memcached configuration
-  template:
-    src: keystone.conf.j2
-    dest: /etc/keystone/keystone.conf
-    owner: keystone
-    group: keystone
-    mode: '0640'
-  notify: keystone_restart
-  tags: [ keystone ]
-  when: 
-    - keystone == "enabled"
-
-
-# - name:  -----Configure Keystone db connection -----
-#   lineinfile:
-#     path: /etc/keystone/keystone.conf
-#     regexp: '^connection\s*='
-#     line: "connection = mysql+pymysql://{{ keystone_db_user }}:{{ keystone_db_password }}@{{ keystone_db_address }}/keystone"
+# - name: ----- install pre-requisite  controll plane -----
+#   apt:
+#     name: "{{ item }}"
 #     state: present
-#   notify: keystone_restart
-#   when: keystone == "enabled"
+#     update_cache: yes
+#   with_items:
+#     - keystone
+#     - python3-openstackclient
+#     - apache2 
 #   tags: [ keystone ]
-
-
-# - name:  -----Configure Keystone token fernet -----
-#   lineinfile:
-#     path: /etc/keystone/keystone.conf
-#     regexp: '^#?\s*enabled\s*='
-#     line: 'enabled = true'    
-#     state: present
-#     insertafter: '^\[cache\]'
-#   notify: keystone_restart
-#   when: keystone == "enabled"
-#   tags: [ keystone ]
-
-
-# - name:  -----Configure Keystone memcache_servers-----
-#   lineinfile:
-#     path: /etc/keystone/keystone.conf
-#     regexp: '^#?\s*memcache_servers\s*='
-#     line: 'memcache_servers = {{ memcached_ip }}:11211'    
-#     state: present
-#     insertafter: '^\[cache\]'
-#   notify: keystone_restart
-#   when: keystone == "enabled"
-#   tags: [ keystone ]
-
-
-
-
-# - name:  -----Configure memcached_ip   -----
-#   lineinfile:
-#     path: /etc/keystone/keystone.conf
-#     regexp: '^#?\s*backend = dogpile.cache.null\s*='
-#     line: 'backend = dogpile.cache.memcached'    
-#     state: present
-#     insertafter: '^\[cache\]'
-#   notify: keystone_restart
-#   when: keystone == "enabled"
-#   tags: [ keystone ]
-
-
-
-# - name:  -----Configure driver credential token fernet -----
-#   lineinfile:
-#     path: /etc/keystone/keystone.conf
-#     regexp: '^#?\s*driver\s*=\s*fernet'
-#     line: 'driver = sql'    
-#     state: present
-#     insertafter: '^\[credential\]'
-#   notify: keystone_restart
-#   when: keystone == "enabled"
-#   tags: [ keystone ]
-
-# - name:  -----Configure cache -----
-#   lineinfile:
-#     path: /etc/keystone/keystone.conf
-#     regexp: '^#?\s*driver\s*=\s*fernet'
-#     line: 'driver = sql'    
-#     state: present
-#     insertafter: '^\[cache\]'
-#   notify: keystone_restart
-#   when: keystone == "enabled"
-#   tags: [ keystone ]
-
-
-# - name:  -----Configure provider credential token fernet -----
-#   lineinfile:
-#     path: /etc/keystone/keystone.conf
-#     regexp: '^#?\s*provider\s*=\s*fernet'
-#     line: 'provider = fernet'    
-#     state: present
-#     insertafter: '^\[credential\]'
-#   notify: keystone_restart
-#   when: keystone == "enabled"
-#   tags: [ keystone ]
-
-
-# - name:  -----Configure key_repository credential token fernet -----
-#   lineinfile:
-#     path: /etc/keystone/keystone.conf
-#     regexp: '^#?\s*key_repository\s*=\s*fernet'
-#     line: 'key_repository = /etc/keystone/credential-keys/'    
-#     state: present
-#     insertafter: '^\[credential\]'
-#   notify: keystone_restart
-#   when: keystone == "enabled"
-#   tags: [ keystone ]
-
-
-
-- name: Check if Keystone has ever been initialized
-  stat:
-    path: /etc/keystone/.ansible_db_synced
-  register: keystone_init_state
-  when: 
-    - keystone == "enabled"
-  ignore_errors: yes
-  tags: [ keystone ]
-
-
-
-- name: -----run db_sync command------
-  shell: keystone-manage db_sync
-  async: 300
-  run_once: true
-  when: 
-    - keystone == "enabled"
-    - keystone_init_state is not skipped
-    - keystone_init_state.stat is defined
-    - not keystone_init_state.stat.exists
-  tags: [ keystone ]
-
-
-
-- name: -----run fernet user Configure-----
-  shell: keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
-  run_once: true
-  when: 
-    - not keystone_init_state.stat.exists 
-    - keystone == "enabled"
-  tags: [ keystone ]
-
-
-
-- name: ------run fernet credential configure 
-  shell: keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
-  args:
-    creates: /etc/keystone/credential-keys/0
-  run_once: true
-  when: 
-    - not keystone_init_state.stat.exists 
-    - keystone == "enabled"
-  tags: [ keystone ]
-
-
-
-- name: Bootstrap Keystone
-  shell: >
-    keystone-manage bootstrap R
-    --bootstrap-password  {{ keystone_admin_password }} 
-    --bootstrap-project-name admin 
-    --bootstrap-role-name admin 
-    --bootstrap-service-name keystone 
-    --bootstrap-region-id RegionOne 
-    --bootstrap-admin-url http://{{ controller_admin_address }}:5000/v3/
-    --bootstrap-internal-url http://{{ controller_internal_address }}:5000/v3/
-    --bootstrap-public-url http://{{ controller_public_address }}:5000/v3/  
-  become: yes
-  run_once: true
-  args:
-    creates: /etc/keystone/.ansible_bootstrapped
-  when: 
-    - keystone == "enabled"
-    - not keystone_init_state.stat.exists
-  tags: [ keystone ]
-
-
-
-- name: ----check keystone functionality------
-  shell: > 
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin"
-    --os-username "{{ controller_os_username }}"
-    --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "default"
-    --os-project-domain-name Default domain list
-  when: 
-    - keystone == "enabled"
-    - not keystone_init_state.stat.exists
-  tags: [ keystone ]
-
-
-
-
-- name: Create history marker (The State File)
-  file:
-    path: /etc/keystone/.ansible_db_synced
-    state: touch
-    owner: keystone
-    group: keystone
-    mode: '0644'
-  become: yes
-  when: 
-    - not keystone_init_state.stat.exists 
-    - keystone == "enabled"
-  run_once: true
-  tags: [ keystone ]
-
-
-
-- name: ----- create new domain ------
-  shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}" 
-    --os-project-name "{{ controller_os_project_name }}"
-    --os-username "{{ controller_os_username }}" 
-    --os-password "{{ controller_os_password }}" 
-    --os-user-domain-name "Default"
-    --os-project-domain-name "Default"
-    --os-identity-api-version 3 domain create  --description "An Example Domain" "{{ controller_os_user_domain_name}}"
-  when: 
-    - keystone == "enabled"
-    - not keystone_init_state.stat.exists 
-  tags: [ keystone ]
-
-
-
-- name: ---add admin role to  "{{ controller_os_project_name }}" 
-  shell: > 
-    openstack --os-auth-url "{{ controller_os_auth_url }}" 
-    --os-project-name "{{ controller_os_project_name }}"
-    --os-username "{{ controller_os_username }}" 
-    --os-password "{{ controller_os_password }}" 
-    --os-user-domain-name "Default"
-    --os-project-domain-name "Default"
-    --os-identity-api-version 3     
-    role add --domain  "{{ controller_os_project_name }}" 
-    --user admin 
-    --user-domain Default admin
-  when: 
-    - keystone == "enabled"
-    - not keystone_init_state.stat.exists 
-  ignore_errors: yes
-  tags: [ keystone ]
-
-
-
-# - name: -------- create new services in "{{ controller_os_user_domain_name}}" ---------
-#   shell: >
-#     openstack --os-auth-url "{{ controller_os_auth_url }}"
-#     --os-project-name "{{ controller_os_project_name }}" 
-#     --os-username "{{ controller_os_username }}"
-#     --os-password "{{ controller_os_password }}" 
-#     project create --domain openstack --description "Service Project" "{{ controller_os_user_domain_name}}-service"
 #   when: 
 #     - keystone == "enabled"
 
 
+# - name: Deploy keystone configuration
+#   template:
+#     src: keystone.conf.j2
+#     dest: /etc/keystone/keystone.conf
+#     owner: keystone
+#     group: keystone
+#     mode: '0640'
+#   notify: keystone_restart
+#   tags: [ keystone ]
+#   when: 
+#     - keystone == "enabled"
 
-# - name: ------- create new project in "{{ controller_os_user_domain_name}}"
-#   shell: >
-#     openstack --os-auth-url "{{ controller_os_auth_url }}"
-#     --os-project-name "{{ controller_os_project_name }}"
-#     --os-username "{{ controller_os_username }}"
-#     --os-password "{{ controller_os_password }}"
-#     project create --domain "{{ controller_os_user_domain_name }}" --description "Demo Project" "{{ controller_os_user_domain_name }}-project"
+
+# # - name:  -----Configure Keystone db connection -----
+# #   lineinfile:
+# #     path: /etc/keystone/keystone.conf
+# #     regexp: '^connection\s*='
+# #     line: "connection = mysql+pymysql://{{ keystone_db_user }}:{{ keystone_db_password }}@{{ keystone_db_address }}/keystone"
+# #     state: present
+# #   notify: keystone_restart
+# #   when: keystone == "enabled"
+# #   tags: [ keystone ]
+
+
+# # - name:  -----Configure Keystone token fernet -----
+# #   lineinfile:
+# #     path: /etc/keystone/keystone.conf
+# #     regexp: '^#?\s*enabled\s*='
+# #     line: 'enabled = true'    
+# #     state: present
+# #     insertafter: '^\[cache\]'
+# #   notify: keystone_restart
+# #   when: keystone == "enabled"
+# #   tags: [ keystone ]
+
+
+# # - name:  -----Configure Keystone memcache_servers-----
+# #   lineinfile:
+# #     path: /etc/keystone/keystone.conf
+# #     regexp: '^#?\s*memcache_servers\s*='
+# #     line: 'memcache_servers = {{ memcached_ip }}:11211'    
+# #     state: present
+# #     insertafter: '^\[cache\]'
+# #   notify: keystone_restart
+# #   when: keystone == "enabled"
+# #   tags: [ keystone ]
+
+
+
+
+# # - name:  -----Configure memcached_ip   -----
+# #   lineinfile:
+# #     path: /etc/keystone/keystone.conf
+# #     regexp: '^#?\s*backend = dogpile.cache.null\s*='
+# #     line: 'backend = dogpile.cache.memcached'    
+# #     state: present
+# #     insertafter: '^\[cache\]'
+# #   notify: keystone_restart
+# #   when: keystone == "enabled"
+# #   tags: [ keystone ]
+
+
+
+# # - name:  -----Configure driver credential token fernet -----
+# #   lineinfile:
+# #     path: /etc/keystone/keystone.conf
+# #     regexp: '^#?\s*driver\s*=\s*fernet'
+# #     line: 'driver = sql'    
+# #     state: present
+# #     insertafter: '^\[credential\]'
+# #   notify: keystone_restart
+# #   when: keystone == "enabled"
+# #   tags: [ keystone ]
+
+# # - name:  -----Configure cache -----
+# #   lineinfile:
+# #     path: /etc/keystone/keystone.conf
+# #     regexp: '^#?\s*driver\s*=\s*fernet'
+# #     line: 'driver = sql'    
+# #     state: present
+# #     insertafter: '^\[cache\]'
+# #   notify: keystone_restart
+# #   when: keystone == "enabled"
+# #   tags: [ keystone ]
+
+
+# # - name:  -----Configure provider credential token fernet -----
+# #   lineinfile:
+# #     path: /etc/keystone/keystone.conf
+# #     regexp: '^#?\s*provider\s*=\s*fernet'
+# #     line: 'provider = fernet'    
+# #     state: present
+# #     insertafter: '^\[credential\]'
+# #   notify: keystone_restart
+# #   when: keystone == "enabled"
+# #   tags: [ keystone ]
+
+
+# # - name:  -----Configure key_repository credential token fernet -----
+# #   lineinfile:
+# #     path: /etc/keystone/keystone.conf
+# #     regexp: '^#?\s*key_repository\s*=\s*fernet'
+# #     line: 'key_repository = /etc/keystone/credential-keys/'    
+# #     state: present
+# #     insertafter: '^\[credential\]'
+# #   notify: keystone_restart
+# #   when: keystone == "enabled"
+# #   tags: [ keystone ]
+
+
+
+# - name: Check if Keystone has ever been initialized
+#   stat:
+#     path: /etc/keystone/.ansible_db_synced
+#   register: keystone_init_state
 #   when: 
 #     - keystone == "enabled"
 #   ignore_errors: yes
+#   tags: [ keystone ]
+#   notify: keystone_restart
 
-- name: Create the project for services in default domain
-  shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default" --os-project-domain-name "Default"
-    project create --domain default --description "Service Project for Domain default" "{{ controller_os_user_domain_name }}" 
-  register: create_proj
-  when: 
-    - keystone == "enabled"
-    - not keystone_init_state.stat.exists 
-  tags: 
-    - users
-  tags: [ keystone ]
+
+# - name: -----run db_sync command------
+#   shell: keystone-manage db_sync
+#   async: 300
+#   run_once: true
+#   when: 
+#     - keystone == "enabled"
+#     - keystone_init_state is not skipped
+#     - keystone_init_state.stat is defined
+#     - not keystone_init_state.stat.exists
+#   tags: [ keystone ]
+
+
+
+# - name: -----run fernet user Configure-----
+#   shell: keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+#   run_once: true
+#   when: 
+#     - not keystone_init_state.stat.exists 
+#     - keystone == "enabled"
+#   tags: [ keystone ]
+
+
+
+# - name: ------run fernet credential configure 
+#   shell: keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+#   args:
+#     creates: /etc/keystone/credential-keys/0
+#   run_once: true
+#   when: 
+#     - not keystone_init_state.stat.exists 
+#     - keystone == "enabled"
+#   tags: [ keystone ]
+
+
+
+# - name: Bootstrap Keystone
+#   shell: >
+#     keystone-manage bootstrap 
+#     --bootstrap-password  {{ keystone_admin_password }} 
+#     --bootstrap-project-name default
+#     --bootstrap-role-name admin 
+#     --bootstrap-service-name keystone 
+#     --bootstrap-region-id RegionOne 
+#     --bootstrap-admin-url http://{{ controller_admin_address }}:5000/v3/
+#     --bootstrap-internal-url http://{{ controller_internal_address }}:5000/v3/
+#     --bootstrap-public-url http://{{ controller_public_address }}:5000/v3/  
+#   become: yes
+#   run_once: true
+#   args:
+#     creates: /etc/keystone/.ansible_bootstrapped
+#   when: 
+#     - keystone == "enabled"
+#     - not keystone_init_state.stat.exists
+#   tags: [ keystone ]
+
+
+
+# - name: ----check keystone functionality------
+#   shell: > 
+#     openstack --os-auth-url "{{ controller_os_auth_url }}"
+#     --os-project-name "default"
+#     --os-username "{{ controller_os_username }}"
+#     --os-password "{{ controller_os_password }}"
+#     --os-user-domain-name "{{ openstack_domain }}"
+#     --os-project-domain-name "{{ openstack_domain }}" domain list
+#   when: 
+#     - keystone == "enabled"
+#     - not keystone_init_state.stat.exists
+#   tags: [ keystone ]
+
+
+
+# - name: ---add admin role to  "{{ controller_os_project_name }}" 
+#   shell: > 
+#     openstack --os-auth-url "{{ controller_os_auth_url }}" 
+#     --os-project-name "default"
+#     --os-username "{{ controller_os_username }}" 
+#     --os-password "{{ controller_os_password }}" 
+#     --os-user-domain-name "{{ openstack_domain }}"
+#     --os-project-domain-name default
+#     --os-identity-api-version 3     
+#     role add --domain  "{{ openstack_domain }}"
+#     --user admin 
+#     --user-domain "{{ openstack_domain }}" admin
+#   when: 
+#     - keystone == "enabled"
+#     - not keystone_init_state.stat.exists 
+#   ignore_errors: yes
+#   tags: [ keystone ]
+
+# - name: check the project for services in default domain
+#   shell: >
+#     openstack --os-auth-url "{{ controller_os_auth_url }}"
+#     --os-project-name default
+#     --os-username "admin"
+#     --os-password "{{ controller_os_password }}"
+#     --os-user-domain-name "{{ openstack_domain }}" 
+#     --os-project-domain-name "{{ openstack_domain }}"
+#     project list   | awk '{print $4}' | xargs | grep -E "{{ openstack_project }}"
+#   register: check_project
+#   when: 
+#     - keystone == "enabled"
+#     - not keystone_init_state.stat.exists 
+#   tags: [ keystone ]
+
+
+
+# - name: Create the project for services in default domain
+#   shell: >
+#     openstack --os-auth-url "{{ controller_os_auth_url }}"
+#     --os-project-name default
+#     --os-username "admin"
+#     --os-password "{{ controller_os_password }}"
+#     --os-user-domain-name "{{ openstack_domain }}" 
+#     --os-project-domain-name "{{ openstack_domain }}"
+#     project create --domain "{{ openstack_domain }}" --description "Service Project for Domain default" "{{ openstack_project }}" 
+#   register: create_proj
+#   when: 
+#     - keystone == "enabled"
+#     - check_project.rc == 1   
+#     - not keystone_init_state.stat.exists 
+#   tags: [ keystone ]
+
 
 - name: check user creation
   shell: >
     openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default" --os-project-domain-name "Default" user list | grep -E "admin|glance|nova|neutron|cinder"
+    --os-project-name "{{ openstack_project }}" 
+    --os-username "admin" 
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "{{ openstack_project }}"
+    --os-project-domain-name "{{ openstack_project }}"
+     user list | grep -E "admin|glance|nova|neutron|cinder"
   register: check_users
   when: 
     - keystone == "enabled"
@@ -308,16 +274,17 @@
   tags: [ keystone ]
 
 
+
 - name: ------- create new users in keystone -------
   shell: >
     openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin"
+    --os-project-name default
     --os-username "admin"
     --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default"
-    --os-project-domain-name "Default"
-    user create --domain Default
-    --project admin
+    --os-user-domain-name "{{ openstack_domain }}"
+    --os-project-domain-name "{{ openstack_domain }}"
+    user create --domain "{{ openstack_project }}"
+    --project "{{ openstack_project }}"
     --password "{{ controller_os_password }}" "{{ item }}"  
   register: final_endpoints
   with_items:
@@ -332,28 +299,34 @@
   ignore_errors: yes
 
 
-
-
 - name: Add admin role to service users
   shell: >
       openstack --os-auth-url "{{ controller_os_auth_url }}"
-      --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
-      --os-user-domain-name "Default" --os-project-domain-name "Default"
-      role add --project "{{ controller_os_user_domain_name }}" 
-      --user "{{ item.name }}" --user-domain "{{ controller_os_user_domain_name }}" admin
+      --os-project-name default
+      --os-username "admin" 
+      --os-password "{{ controller_os_password }}"
+      --os-user-domain-name "{{ openstack_domain }}"
+      --os-project-domain-name "{{ openstack_domain }}"
+      role add --project "{{ openstack_project }}"
+      --user "{{ item.name }}" 
+      --user-domain "{{ openstack_domain }}" admin
   with_items: "{{ openstack_services }}"
   register: role_add
   when:
     - keystone == "enabled"
-    - check_users.rc == 0  
+    - check_users.rc == 0
   tags: [ keystone ]
+
 
 
 - name: check services creation
   shell: >
     openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default" --os-project-domain-name "Default" service list | grep -E "admin|glance|nova|neutron|cinder"
+    --os-project-name "{{ openstack_project }}"
+    --os-username "admin"
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default"
+    --os-project-domain-name "Default" service list | grep -E "admin|glance|nova|neutron|cinder"
   register: check_services
   when: 
     - keystone == "enabled"
@@ -363,7 +336,12 @@
 
 - name: Create OpenStack Services
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}" --os-project-name "admin" --os-username "admin"  --os-password "{{ controller_os_password }}" --os-user-domain-name "Default" --os-project-domain-name "Default" service create --name {{ item.name }} {{ item.type }}
+    openstack --os-auth-url "{{ controller_os_auth_url }}" 
+    --os-project-name "{{ openstack_project }}"
+    --os-username "admin"
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "Default" 
+    --os-project-domain-name "Default" service create --name {{ item.name }} {{ item.type }}
 
   with_items:
     - { name: 'glance', type: 'image', port: '9292' }
@@ -419,7 +397,6 @@
     --os-username "admin"  --os-password "{{ controller_os_password }}" 
     --os-user-domain-name "Default" 
     --os-project-domain-name "Default"  endpoint create --region RegionOne {{ item.name }} public 'http://{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}'
-
   with_items:
     - { name: 'glance', type: 'image', port: '9292' }
     - { name: 'nova', type: 'compute', port: '8774', path: '/v2.1' }
@@ -449,10 +426,23 @@
   when:
     - keystone == "enabled"
     - check_endpoint.rc == 1   
-
     # - controller_os_project_name_state.rc == 0
     # - not keystone_init_state.stat.exists 
   tags: [ keystone ]
   async: 30
   poll: 0
 
+
+- name: Create history marker (The State File)
+  file:
+    path: /etc/keystone/.ansible_db_synced
+    state: touch
+    owner: keystone
+    group: keystone
+    mode: '0644'
+  become: yes
+  when: 
+    - not keystone_init_state.stat.exists 
+    - keystone == "enabled"
+  run_once: true
+  tags: [ keystone ]

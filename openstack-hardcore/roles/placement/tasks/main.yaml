@@ -6,8 +6,6 @@
   with_items:
     - placement-api
   tags: [ placement-install ]
-  when: 
-    - placement == "enabled"
 
 
 - name: check user creation
@@ -19,7 +17,6 @@
   when: 
     - keystone == "enabled"
   tags: [ placement ]
-
 
 
 - name: ----- create new user ------
@@ -36,7 +33,6 @@
     - check_users_placement.rc == 0  
   tags: [ placement ]
   ignore_errors: true
-
 
 
 - name: Add admin role to service users

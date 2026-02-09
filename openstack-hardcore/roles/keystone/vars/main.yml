@@ -4,6 +4,7 @@ keystone_db_password: "YourSecurePasswordHERE"
 keystone_db_address: "172.16.1.2"
 keystone_admin_password: "YourSecurePasswordHERE"
 controller_admin_address: "172.16.1.2"
+
 controller_internal_address: "172.16.1.2"
 controller_public_address: "172.16.1.2"
 controller_os_auth_url: "http://172.16.1.2:5000/v3"
@@ -17,3 +18,6 @@ openstack_services:
   - { name: "glance", user: "glance", db: "glance", pass: "YourSecurePasswordHERE" }
   - { name: "neutron", user: "neutron", db: "neutron", pass: "YourSecurePasswordHERE" }
   - { name: "nova", user: "nova", db: "nova", pass: "YourSecurePasswordHERE",path: '/v2.1'  }
+  - { name: "placement", user: "placement", db: "placement", pass: "YourSecurePasswordHERE",path: '/v2.1'  }
+openstack_project: "services"
+openstack_domain: "Default"

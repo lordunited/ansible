@@ -81,3 +81,5 @@
     - mysql == "enabled"
     - mysql_check.rc == 0
   tags: [ mysql ]
+  async: 60
+  poll: 0

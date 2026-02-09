@@ -22,7 +22,7 @@
     state: present
     update_cache: yes
   with_items:
-    - openvswitch-switch/
+    - openvswitch-switch
     - neutron-openvswitch-agent
   tags: [ neutron ]
   when: 
