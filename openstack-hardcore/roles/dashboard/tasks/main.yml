@@ -5,6 +5,8 @@
     update_cache: yes
   with_items:
     - openstack-dashboard
+    - libapache2-mod-wsgi-py3
+
   tags: [ dashboard ]
   when: dashboard == "enabled"
 
@@ -87,7 +89,6 @@
     line: 'OPENSTACK_HOST = "{{ controller_internal_address }}"'
     state: present
   become: yes
-  notify: apache_restart
   tags: [ dashboard ]
   when: dashboard == "enabled"
 
@@ -103,3 +104,9 @@
   notify: apache_restart
   tags: [ dashboard ]
   when: dashboard == "enabled"
+
+# - name: enable horizon in apache2
+#   shell: "a2ensite horizon"
+#   tags: [ dashboard ]
+#   when: dashboard == "enabled"
+#   notify: apache_restart

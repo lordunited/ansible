@@ -1,5 +1,10 @@
-- name: glance_restart
+- name: neutron_restart
   service: 
-    name: glance-api
+    name: "{{ item }}"
     state: restarted
     enabled: true
+  with_items:
+    - neutron-server
+    - neutron-openvswitch-agent
+    - neutron-dhcp-agent
+    - neutron-metadata-agent

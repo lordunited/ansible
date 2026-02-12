@@ -3679,10 +3679,10 @@ auth_type = password
 [neutron]
 auth_url = http://{{ keystone_address }}:5000
 auth_type = password
-project_domain_name = Default
-user_domain_name = Default
+project_domain_name = {{ openstack_domain }}
+user_domain_name = {{ openstack_domain }}
 region_name = RegionOne
-project_name = service
+project_name = {{  openstack_project }}
 username = {{ neutron_keystone_user }}
 password = {{ neutron_keystone_password }}
 url = http://{{ keystone_address }}:9696

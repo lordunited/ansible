@@ -1,6 +1,8 @@
 [DEFAULT]
 #core_plugin = ml2
-transport_url = rabbit://{{ rabbit_user }}:{{ rabbit_password }}@{{ rabbitmq_address }}
+transport_url = rabbit://{{ rabbitmq_username }}:{{ rabbitmq_password }}@{{ rabbitmq_address }}
+core_plugin = ml2
+service_plugins = router
 
 
 # From neutron
@@ -940,7 +942,7 @@ root_helper = "sudo /usr/bin/neutron-rootwrap /etc/neutron/rootwrap.conf"
 
 
 [database]
-connection = mysql+pymysql://{{ neutron_user }}:{{ neutron_password }}@{{ neutron_db_address }}/neutron
+connection = mysql+pymysql://{{ neutron_user_db_user }}:{{ neutron_user_db_password }}@{{ neutron_db_address }}/neutron
 
 #
 # From neutron.db
@@ -1314,11 +1316,11 @@ connection = mysql+pymysql://{{ neutron_user }}:{{ neutron_password }}@{{ neutro
 auth_url = http://{{ keystone_address }}:5000
 memcached_servers = {  memcached_adddress }:11211
 auth_type = password
-project_domain_name = Default
-user_domain_name = Default
-project_name = service
-username = {{  neutron_user }}
-password = {{ neutron_password }}
+project_domain_name = {{ openstack_domain }}
+user_domain_name = {{ openstack_domain }}
+project_name = {{ openstack_domain}}
+username = {{  neutron_keystone_user }}
+password = {{ neutron_keystone_password }}
 www_authenticate_uri = http://{{ keystone_address }}:5000
 
 

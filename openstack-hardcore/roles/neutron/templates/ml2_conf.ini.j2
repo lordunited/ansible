@@ -3,6 +3,8 @@ type_drivers = flat,vlan,vxlan
 tenant_network_types = vxlan
 mechanism_drivers = openvswitch
 extension_drivers = port_security
+nova_metadata_host = {{ neutron_controller_address }}
+metadata_proxy_shared_secret = METADATA_SECRET
 
 #
 # From oslo.log

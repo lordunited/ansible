@@ -23,8 +23,8 @@
 
 
 
-- name: flush all caches
-  shell: |
-    echo "flush_all" | nc localhost 11211
-  tags: [ memcached ]
-  when: memcached == "enabled"
+# - name: flush all caches
+#   shell: |
+#     echo "flush_all" | nc localhost 11211
+#   tags: [ memcached ]
+#   when: memcached == "enabled"

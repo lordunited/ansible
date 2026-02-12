@@ -1,4 +1,4 @@
-- name: ----- install pre-requisite  controll plane -----
+- name: ----- install pre-requisite  rabbitmq controll plane -----
   apt:
     name: "{{ item }}"
     state: present
@@ -6,28 +6,27 @@
   with_items:
     - rabbitmq-server
   notify: rabbitmq_restart
-  tags: [ rabbitmq ]
   when: 
     - rabbitmq == "enabled"
+  tags: [ rabbitmq ]
 
 - name: enable rabbitmq mangement plugin
   shell: rabbitmq-plugins enable rabbitmq_management
   notify: rabbitmq_restart
-  tags: [ rabbitmq ]
   when: 
     - rabbitmq == "enabled"
-
-
-
-
-- name: create admin user
-  shell: "{{ item }}"
-  with_items:
-    - rabbitmqctl list_users | grep -w "admin"
   tags: [ rabbitmq ]
-  when: 
-    - rabbitmq == "enabled"
+
+
+
+
+- name: check admin user
+  shell: rabbitmqctl list_users | grep -w admin
   register: rabbitmq_user
+  when: rabbitmq == "enabled"
+  failed_when: false
+  changed_when: false
+  tags: [rabbitmq]
 
 
 - name: create admin user
@@ -36,8 +35,8 @@
     - rabbitmqctl add_user "{{ rabbitmq_admin_user }}" "{{ rabbitmq_admin_password }}"
     - rabbitmqctl set_user_tags "{{ rabbitmq_admin_user }}" administrator
     - rabbitmqctl set_permissions -p / "{{ rabbitmq_admin_user }}" ".*" ".*" ".*"
-  tags: [ rabbitmq ]
   when: 
     - rabbitmq == "enabled"
-    - rabbitmq_user.rc != 0
+    - rabbitmq_user.rc == 1
+  tags: [ rabbitmq ]
 

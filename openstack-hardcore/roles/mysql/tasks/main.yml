@@ -24,6 +24,15 @@
     - mysql == "enabled"
   tags: [ mysql ]
 
+
+- name: Restart MySQL
+  service:
+    name: mysql
+    state: restarted
+  when: 
+    - mysql == "enabled"
+
+
 - name: Check if MySQL is listening on 0.0.0.0:3306
   ansible.builtin.shell: ss -tunlp | grep -i "0.0.0.0:3306"
   register: mysql_check
@@ -31,11 +40,13 @@
   changed_when: false
   tags: [ mysql ]
 
+
 - name: Print message if MySQL is running
   ansible.builtin.debug:
     msg: "MySQL is successfully listening on 0.0.0.0:3306"
   when: mysql_check.rc == 0
   tags: [ mysql ]
+
 
 - name:  -----configure root password-----
   community.mysql.mysql_user:

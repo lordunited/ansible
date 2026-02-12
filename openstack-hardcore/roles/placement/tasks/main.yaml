@@ -5,14 +5,12 @@
     update_cache: yes
   with_items:
     - placement-api
-  tags: [ placement-install ]
+  tags: [ placement ]
 
 
 - name: check user creation
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default" --os-project-domain-name "Default" user list | grep -E "placement"
+    openstack --os-project-name {{ openstack_project }} user list | grep -E "placement"
   register: check_users_placement
   when: 
     - keystone == "enabled"
@@ -21,13 +19,8 @@
 
 - name: ----- create new user ------
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}" 
-    --os-project-name "{{ controller_os_project_name }}"
-    --os-username "{{ controller_os_username }}" 
-    --os-password "{{ controller_os_password }}" 
-    --os-user-domain-name "Default"
-    --os-project-domain-name "Default"
-    --os-identity-api-version 3 user create --domain default  "{{ placement_username }}" --password  "{{ placement_password }}"
+    openstack  --os-project-name {{ openstack_project }}  
+    user create --domain default  "{{ placement_username }}" --password  "{{ placement_password }}"
   when: 
     - keystone == "enabled"
     - check_users_placement.rc == 0  
@@ -37,11 +30,9 @@
 
 - name: Add admin role to service users
   shell: >
-      openstack --os-auth-url "{{ controller_os_auth_url }}"
-      --os-project-name "admin" --os-username "admin" --os-password "{{ controller_os_password }}"
-      --os-user-domain-name "Default" --os-project-domain-name "Default"
-      role add --project "{{ controller_os_user_domain_name }}" 
-      --user "{{ placement_username }}" --user-domain "{{ controller_os_user_domain_name }}" admin      
+      openstack --os-project-name {{ openstack_project }} 
+      role add --project {{ openstack_project }} 
+      --user "{{ placement_username }}" --user-domain "{{ openstack_domain }}" admin      
   register: role_add
   when:
     - keystone == "enabled"
@@ -51,12 +42,7 @@
 
 - name: check placement service
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin"
-    --os-username "admin"
-    --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default"
-    --os-project-domain-name "Default"
+    openstack --os-project-name {{ openstack_project }}
     service list | grep placement | awk '{print $1}'
   register: placement_service
   failed_when: false
@@ -68,13 +54,7 @@
 
 - name: create placement service
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin"
-    --os-username "admin"
-    --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default"
-    --os-project-domain-name "Default"
-    service create
+    openstack --os-project-name {{ openstack_project }}
     --name placement
     --description "Placement API"
     placement
@@ -95,12 +75,7 @@
 
 - name: check endpoint creation
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin"
-    --os-username "admin"
-    --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default"
-    --os-project-domain-name "Default"
+    openstack --os-project-name {{ openstack_project }}
     endpoint list | grep -E "placement"
   register: check_endpoint
   failed_when: check_endpoint.rc > 1
@@ -113,12 +88,7 @@
 
 - name: Create OpenStack internal Placement endpoint
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin"
-    --os-username "admin"
-    --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default"
-    --os-project-domain-name "Default"
+    openstack --os-project-name {{ openstack_project }}
     endpoint create
     --region RegionOne
     {{ item.type }}
@@ -137,12 +107,7 @@
 
 - name: Create OpenStack public Placement endpoint
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin"
-    --os-username "admin"
-    --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default"
-    --os-project-domain-name "Default"
+    openstack --os-project-name {{ openstack_project }}
     endpoint create
     --region RegionOne
     {{ item.type }}
@@ -160,12 +125,7 @@
 
 - name: Create OpenStack admin Placement endpoint
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin"
-    --os-username "admin"
-    --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default"
-    --os-project-domain-name "Default"
+    openstack --os-project-name {{ openstack_project }}
     endpoint create
     --region RegionOne
     {{ item.type }}

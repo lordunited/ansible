@@ -1,39 +1,39 @@
-# - name: ----- install pre-requisite  controll plane -----
-#   apt:
-#     name: "{{ item }}"
+- name: ----- install pre-requisite  controll plane -----
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - keystone
+    - python3-openstackclient
+    - apache2 
+  tags: [ keystone ]
+  when: 
+    - keystone == "enabled"
+
+
+- name: Deploy keystone configuration
+  template:
+    src: keystone.conf.j2
+    dest: /etc/keystone/keystone.conf
+    owner: keystone
+    group: keystone
+    mode: '0640'
+  notify: keystone_restart
+  tags: [ keystone ]
+  when: 
+    - keystone == "enabled"
+
+
+# - name:  -----Configure Keystone db connection -----
+#   lineinfile:
+#     path: /etc/keystone/keystone.conf
+#     regexp: '^connection\s*='
+#     line: "connection = mysql+pymysql://{{ keystone_db_user }}:{{ keystone_db_password }}@{{ keystone_db_address }}/keystone"
 #     state: present
-#     update_cache: yes
-#   with_items:
-#     - keystone
-#     - python3-openstackclient
-#     - apache2 
-#   tags: [ keystone ]
-#   when: 
-#     - keystone == "enabled"
-
-
-# - name: Deploy keystone configuration
-#   template:
-#     src: keystone.conf.j2
-#     dest: /etc/keystone/keystone.conf
-#     owner: keystone
-#     group: keystone
-#     mode: '0640'
 #   notify: keystone_restart
+#   when: keystone == "enabled"
 #   tags: [ keystone ]
-#   when: 
-#     - keystone == "enabled"
-
-
-# # - name:  -----Configure Keystone db connection -----
-# #   lineinfile:
-# #     path: /etc/keystone/keystone.conf
-# #     regexp: '^connection\s*='
-# #     line: "connection = mysql+pymysql://{{ keystone_db_user }}:{{ keystone_db_password }}@{{ keystone_db_address }}/keystone"
-# #     state: present
-# #   notify: keystone_restart
-# #   when: keystone == "enabled"
-# #   tags: [ keystone ]
 
 
 # # - name:  -----Configure Keystone token fernet -----
@@ -123,167 +123,168 @@
 
 
 
-# - name: Check if Keystone has ever been initialized
-#   stat:
-#     path: /etc/keystone/.ansible_db_synced
-#   register: keystone_init_state
-#   when: 
-#     - keystone == "enabled"
-#   ignore_errors: yes
-#   tags: [ keystone ]
-#   notify: keystone_restart
-
-
-# - name: -----run db_sync command------
-#   shell: keystone-manage db_sync
-#   async: 300
-#   run_once: true
-#   when: 
-#     - keystone == "enabled"
-#     - keystone_init_state is not skipped
-#     - keystone_init_state.stat is defined
-#     - not keystone_init_state.stat.exists
-#   tags: [ keystone ]
-
-
-
-# - name: -----run fernet user Configure-----
-#   shell: keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
-#   run_once: true
-#   when: 
-#     - not keystone_init_state.stat.exists 
-#     - keystone == "enabled"
-#   tags: [ keystone ]
-
-
-
-# - name: ------run fernet credential configure 
-#   shell: keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
-#   args:
-#     creates: /etc/keystone/credential-keys/0
-#   run_once: true
-#   when: 
-#     - not keystone_init_state.stat.exists 
-#     - keystone == "enabled"
-#   tags: [ keystone ]
-
-
-
-# - name: Bootstrap Keystone
-#   shell: >
-#     keystone-manage bootstrap 
-#     --bootstrap-password  {{ keystone_admin_password }} 
-#     --bootstrap-project-name default
-#     --bootstrap-role-name admin 
-#     --bootstrap-service-name keystone 
-#     --bootstrap-region-id RegionOne 
-#     --bootstrap-admin-url http://{{ controller_admin_address }}:5000/v3/
-#     --bootstrap-internal-url http://{{ controller_internal_address }}:5000/v3/
-#     --bootstrap-public-url http://{{ controller_public_address }}:5000/v3/  
-#   become: yes
-#   run_once: true
-#   args:
-#     creates: /etc/keystone/.ansible_bootstrapped
-#   when: 
-#     - keystone == "enabled"
-#     - not keystone_init_state.stat.exists
-#   tags: [ keystone ]
-
-
-
-# - name: ----check keystone functionality------
-#   shell: > 
-#     openstack --os-auth-url "{{ controller_os_auth_url }}"
-#     --os-project-name "default"
-#     --os-username "{{ controller_os_username }}"
-#     --os-password "{{ controller_os_password }}"
-#     --os-user-domain-name "{{ openstack_domain }}"
-#     --os-project-domain-name "{{ openstack_domain }}" domain list
-#   when: 
-#     - keystone == "enabled"
-#     - not keystone_init_state.stat.exists
-#   tags: [ keystone ]
-
-
-
-# - name: ---add admin role to  "{{ controller_os_project_name }}" 
-#   shell: > 
-#     openstack --os-auth-url "{{ controller_os_auth_url }}" 
-#     --os-project-name "default"
-#     --os-username "{{ controller_os_username }}" 
-#     --os-password "{{ controller_os_password }}" 
-#     --os-user-domain-name "{{ openstack_domain }}"
-#     --os-project-domain-name default
-#     --os-identity-api-version 3     
-#     role add --domain  "{{ openstack_domain }}"
-#     --user admin 
-#     --user-domain "{{ openstack_domain }}" admin
-#   when: 
-#     - keystone == "enabled"
-#     - not keystone_init_state.stat.exists 
-#   ignore_errors: yes
-#   tags: [ keystone ]
-
-# - name: check the project for services in default domain
-#   shell: >
-#     openstack --os-auth-url "{{ controller_os_auth_url }}"
-#     --os-project-name default
-#     --os-username "admin"
-#     --os-password "{{ controller_os_password }}"
-#     --os-user-domain-name "{{ openstack_domain }}" 
-#     --os-project-domain-name "{{ openstack_domain }}"
-#     project list   | awk '{print $4}' | xargs | grep -E "{{ openstack_project }}"
-#   register: check_project
-#   when: 
-#     - keystone == "enabled"
-#     - not keystone_init_state.stat.exists 
-#   tags: [ keystone ]
-
-
-
-# - name: Create the project for services in default domain
-#   shell: >
-#     openstack --os-auth-url "{{ controller_os_auth_url }}"
-#     --os-project-name default
-#     --os-username "admin"
-#     --os-password "{{ controller_os_password }}"
-#     --os-user-domain-name "{{ openstack_domain }}" 
-#     --os-project-domain-name "{{ openstack_domain }}"
-#     project create --domain "{{ openstack_domain }}" --description "Service Project for Domain default" "{{ openstack_project }}" 
-#   register: create_proj
-#   when: 
-#     - keystone == "enabled"
-#     - check_project.rc == 1   
-#     - not keystone_init_state.stat.exists 
-#   tags: [ keystone ]
-
-
-- name: check user creation
-  shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "{{ openstack_project }}" 
-    --os-username "admin" 
-    --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "{{ openstack_project }}"
-    --os-project-domain-name "{{ openstack_project }}"
-     user list | grep -E "admin|glance|nova|neutron|cinder"
-  register: check_users
+- name: Check if Keystone has ever been initialized
+  shell: ls /etc/keystone/.ansible_db_synced
+  register: keystone_init_state
   when: 
     - keystone == "enabled"
   ignore_errors: yes
   tags: [ keystone ]
 
+- name: Restart Keystone
+  service:
+    name: apache2
+    state: restarted
+  when: 
+    - mysql == "enabled"
+
+- name: -----run db_sync command------
+  shell: keystone-manage db_sync
+  async: 300
+  run_once: true
+  when: 
+    - keystone == "enabled"
+    - keystone_init_state.rc != 0
+  tags: [ keystone ]
 
 
-- name: ------- create new users in keystone -------
+
+- name: -----run fernet user Configure-----
+  shell: keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
+  run_once: true
+  when: 
+    - keystone_init_state.rc != 0
+    - keystone == "enabled"
+  tags: [ keystone ]
+
+
+
+- name: ------run fernet credential configure 
+  shell: keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
+  args:
+    creates: /etc/keystone/credential-keys/0
+  run_once: true
+  when: 
+    - keystone_init_state.rc != 0
+    - keystone == "enabled"
+  tags: [ keystone ]
+
+
+
+- name: Bootstrap Keystone
+  shell: >
+    keystone-manage bootstrap 
+    --bootstrap-password  {{ keystone_admin_password }} 
+    --bootstrap-project-name default
+    --bootstrap-role-name admin 
+    --bootstrap-service-name keystone 
+    --bootstrap-region-id RegionOne 
+    --bootstrap-admin-url http://{{ controller_admin_address }}:5000/v3/
+    --bootstrap-internal-url http://{{ controller_internal_address }}:5000/v3/
+    --bootstrap-public-url http://{{ controller_public_address }}:5000/v3/  
+  become: yes
+  run_once: true
+  args:
+    creates: /etc/keystone/.ansible_bootstrapped
+  when: 
+    - keystone == "enabled"
+    - keystone_init_state.rc != 0
+  tags: [ keystone ]
+
+
+
+- name: ----check keystone functionality------
+  shell: > 
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name "default"
+    --os-username "{{ controller_os_username }}"
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "{{ openstack_domain }}"
+    --os-project-domain-name "{{ openstack_domain }}" domain list
+  when: 
+    - keystone == "enabled"
+    - keystone_init_state.rc != 0
+  tags: [ keystone ]
+
+
+
+- name: ---add admin role to  "{{ openstack_projectt_name }}" 
+  shell: > 
+    openstack --os-auth-url "{{ controller_os_auth_url }}" 
+    --os-project-name "default"
+    --os-username "{{ controller_os_username }}" 
+    --os-password "{{ controller_os_password }}" 
+    --os-user-domain-name "{{ openstack_domain }}"
+    --os-project-domain-name default
+    --os-identity-api-version 3     
+    role add --domain  "{{ openstack_domain }}"
+    --user admin 
+    --user-domain "{{ openstack_domain }}" admin
+  when: 
+    - keystone == "enabled"
+    - keystone_init_state.rc != 0
+  ignore_errors: yes
+  tags: [ keystone ]
+
+- name: check the project for services in default domain
   shell: >
     openstack --os-auth-url "{{ controller_os_auth_url }}"
     --os-project-name default
     --os-username "admin"
     --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "{{ openstack_domain }}"
+    --os-user-domain-name "{{ openstack_domain }}" 
     --os-project-domain-name "{{ openstack_domain }}"
-    user create --domain "{{ openstack_project }}"
+    project list   | awk '{print $4}' | xargs | grep -E "{{ openstack_project }}"
+  register: check_project
+  when: 
+    - keystone == "enabled"
+    - keystone_init_state.rc != 0
+  tags: [ keystone ]
+  ignore_errors: yes
+  async: 5
+  poll: 1
+
+- name: Create the project for services in default domain
+  shell: >
+    openstack --os-auth-url "{{ controller_os_auth_url }}"
+    --os-project-name default
+    --os-username "admin"
+    --os-password "{{ controller_os_password }}"
+    --os-user-domain-name "{{ openstack_domain }}" 
+    --os-project-domain-name "{{ openstack_domain }}"
+    project create --domain "{{ openstack_domain }}" --description "Service Project for Domain default" "{{ openstack_project }}" 
+  register: create_proj
+  when: 
+    - keystone == "enabled"
+    - check_project.rc == 1   
+    - not keystone_init_state.stat.exists 
+  tags: [ keystone  ]
+
+- name: add admin role to admin in {{ openstack_project }} project
+  ansible.builtin.shell: >
+    openstack  --os-project-name "default" role add --project {{ openstack_project }}  --user admin admin
+  when: 
+    - keystone == "enabled"
+ #   - keystone_init_state.rc != 0
+  ignore_errors: yes
+  tags: [ keystone ]
+
+
+- name: check user creation
+  ansible.builtin.shell: >
+    openstack --os-project-name {{ openstack_project }}  --project-name "{{ openstack_project }}" 
+    user list | grep -E "admin|glance|nova|neutron|cinder"
+  register: check_users
+  when: 
+    - keystone == "enabled"
+    - keystone_init_state.rc != 0
+  ignore_errors: yes
+  tags: [ keystone  ]
+##################################################
+- name: ------- create new users in keystone -------
+  ansible.builtin.shell: >
+    openstack --project-name "{{ openstack_project }}" 
+    user create 
     --project "{{ openstack_project }}"
     --password "{{ controller_os_password }}" "{{ item }}"  
   register: final_endpoints
@@ -295,18 +296,13 @@
   when: 
     - keystone == "enabled"
     - check_users.rc != 1 
-  tags: [ keystone ]
+  
+  tags: [ keystone ,s]
   ignore_errors: yes
-
-
+#############################################################################
 - name: Add admin role to service users
   shell: >
-      openstack --os-auth-url "{{ controller_os_auth_url }}"
-      --os-project-name default
-      --os-username "admin" 
-      --os-password "{{ controller_os_password }}"
-      --os-user-domain-name "{{ openstack_domain }}"
-      --os-project-domain-name "{{ openstack_domain }}"
+    openstack  --os-project-name "{{ openstack_project }}" 
       role add --project "{{ openstack_project }}"
       --user "{{ item.name }}" 
       --user-domain "{{ openstack_domain }}" admin
@@ -316,67 +312,58 @@
     - keystone == "enabled"
     - check_users.rc == 0
   tags: [ keystone ]
-
-
-
-- name: check services creation
+##################################################################################
+#services doesnt related to project scope 
+####SEPRATE PER SERVICE ######
+- name: check services creation 
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "{{ openstack_project }}"
-    --os-username "admin"
-    --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default"
-    --os-project-domain-name "Default" service list | grep -E "admin|glance|nova|neutron|cinder"
+    openstack --os-project-name {{ openstack_project }}
+    service list | grep -E "admin|glance|nova|neutron|cinder"
   register: check_services
   when: 
     - keystone == "enabled"
   tags: [ keystone ]
   ignore_errors: yes
+################################################################################
+
+- name: add system role to admin user
+  shell: openstack  --os-project-name {{ openstack_project }} role add --system all --user admin admin
+  when:
+    - keystone == "enabled"
+  tags: [ keystone , user]
+
 
 
 - name: Create OpenStack Services
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}" 
-    --os-project-name "{{ openstack_project }}"
-    --os-username "admin"
-    --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default" 
-    --os-project-domain-name "Default" service create --name {{ item.name }} {{ item.type }}
-
+    openstack  --os-project-name {{ openstack_project }} service create --name {{ item.name }} --description "OpenStack {{   item.type }} Service"  {{ item.type }}
   with_items:
     - { name: 'glance', type: 'image', port: '9292' }
     - { name: 'nova', type: 'compute', port: '8774', path: '/v2.1' }
     - { name: 'neutron', type: 'network', port: '9696' }
     - { name: 'cinder', type: 'volumev3', port: '8776', path: '/v3/%(project_id)s' }
-  register: catalog_out
   when:
     - keystone == "enabled"
     - check_services.rc == 1   
-  tags: [ keystone ]
+  tags: [ keystone , s]
 
 
 - name: check endpoint creation
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}"
-    --os-project-name "admin" --os-username "admin" 
-    --os-password "{{ controller_os_password }}"
-    --os-user-domain-name "Default"
-    --os-project-domain-name "Default"  endpoint list | grep -E "nova|keystone|glance|cinder|keystone"
+    openstack  --os-project-name {{ openstack_project }}
+    endpoint list --project {{ openstack_project }} | grep -E "nova|glance|cinder|neutron" 
   register: check_endpoint
   tags: [ keystone ]
   when:
     - keystone == "enabled"
+  ignore_errors: yes
 
 
-
+#Endpoints can be scoped per region, but not per project.
 - name: Create OpenStack  internal  Endpoints
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}" 
-    --os-project-name "admin" 
-    --os-username "admin"  
-    --os-password "{{ controller_os_password }}" 
-    --os-user-domain-name "Default" 
-    --os-project-domain-name "Default" endpoint create --region RegionOne {{ item.name }} internal 'http://{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}'
+    openstack  --os-project-name {{ openstack_project }}
+    endpoint create  --region RegionOne {{ item.name }} internal 'http://{{ controller_admin_address }}:{{ item.port }}{{ item.path | default('') }}' 
   with_items:
     - { name: 'glance', type: 'image', port: '9292' }
     - { name: 'nova', type: 'compute', port: '8774', path: '/v2.1' }
@@ -384,19 +371,17 @@
     - { name: 'cinder', type: 'volumev3', port: '8776', path: '/v3/%(project_id)s' }
   when:
     - keystone == "enabled"
-    - check_endpoint.rc == 1   
+  #  - check_endpoint.rc == 1   
+#    - not keystone_init_state.stat.exists 
 
-  tags: [ keystone ]
+  tags: [ keystone , endpoint ]
 
 
 
 - name: Create OpenStack Services public  Endpoints
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}" 
-    --os-project-name "admin" 
-    --os-username "admin"  --os-password "{{ controller_os_password }}" 
-    --os-user-domain-name "Default" 
-    --os-project-domain-name "Default"  endpoint create --region RegionOne {{ item.name }} public 'http://{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}'
+    openstack  --os-project-name {{ openstack_project }}
+    endpoint create  --region RegionOne {{ item.name }} public 'http://{{ controller_admin_address }}:{{ item.port }}{{ item.path | default('') }}' 
   with_items:
     - { name: 'glance', type: 'image', port: '9292' }
     - { name: 'nova', type: 'compute', port: '8774', path: '/v2.1' }
@@ -404,20 +389,17 @@
     - { name: 'cinder', type: 'volumev3', port: '8776', path: '/v3/%(project_id)s' }
   when:
     - keystone == "enabled"
-    - check_endpoint.rc == 1   
+  #  - check_endpoint.rc == 1   
+  #  - not keystone_init_state.stat.exists 
 
     # - controller_os_project_name_state.rc == 0
-    # - not keystone_init_state.stat.exists 
-  tags: [ keystone ]
+  tags: [ keystone , endpoint]
 
 
 - name: Create OpenStack Services admin  Endpoints
   shell: >
-    openstack --os-auth-url "{{ controller_os_auth_url }}" 
-    --os-project-name "admin" --os-username "admin" 
-     --os-password "{{ controller_os_password }}" 
-     --os-user-domain-name "Default" --os-project-domain-name "Default" 
-      endpoint create --region RegionOne {{ item.name }} admin 'http://{{ controller_admin_address }}":{{ item.port }}{{ item.path | default('') }}'
+    openstack  --os-project-name {{ openstack_project }}
+    endpoint create  --region RegionOne {{ item.name }} admin 'http://{{ controller_admin_address }}:{{ item.port }}{{ item.path | default('') }}' 
   with_items:
     - { name: 'glance', type: 'image', port: '9292' }
     - { name: 'nova', type: 'compute', port: '8774', path: '/v2.1' }
@@ -425,10 +407,10 @@
     - { name: 'cinder', type: 'volumev3', port: '8776', path: '/v3/%(project_id)s' }
   when:
     - keystone == "enabled"
-    - check_endpoint.rc == 1   
+ #   - check_endpoint.rc == 1   
     # - controller_os_project_name_state.rc == 0
-    # - not keystone_init_state.stat.exists 
-  tags: [ keystone ]
+  #  - not keystone_init_state.stat.exists 
+  tags: [ keystone ,endpoint]
   async: 30
   poll: 0
 
@@ -442,7 +424,6 @@
     mode: '0644'
   become: yes
   when: 
-    - not keystone_init_state.stat.exists 
     - keystone == "enabled"
   run_once: true
   tags: [ keystone ]

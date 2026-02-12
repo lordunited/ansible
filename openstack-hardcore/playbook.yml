@@ -5,12 +5,20 @@
   become_user: root
   roles:
    - mysql
-   - keystone
-   - glance
-   - memcached
-   - dashboard
-   - neutron
-   - rabbitmq
-   - nova
    - kvm
+   - memcached
+   - rabbitmq
+   - keystone
    - placement
+   - glance
+   - neutron
+   - nova
+   - dashboard
+
+
+  environment:
+    OS_AUTH_URL: http://172.16.1.2:5000/v3
+    OS_USERNAME: admin
+    OS_PASSWORD: YourSecurePasswordHERE
+    OS_USER_DOMAIN_NAME: default
+    OS_PROJECT_DOMAIN_NAME: default

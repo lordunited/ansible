@@ -20,4 +20,4 @@ openstack_services:
   - { name: "nova", user: "nova", db: "nova", pass: "YourSecurePasswordHERE",path: '/v2.1'  }
   - { name: "placement", user: "placement", db: "placement", pass: "YourSecurePasswordHERE",path: '/v2.1'  }
 openstack_project: "services"
-openstack_domain: "Default"
+openstack_domain: "default"
