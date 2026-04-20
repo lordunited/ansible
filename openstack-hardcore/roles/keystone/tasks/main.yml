@@ -273,17 +273,17 @@
 - name: check user creation
   ansible.builtin.shell: >
     openstack --os-project-name {{ openstack_project }}  --project-name "{{ openstack_project }}" 
-    user list | grep -E "admin|glance|nova|neutron|cinder"
+    user list | grep -E "glance|nova|neutron|cinder"
   register: check_users
   when: 
     - keystone == "enabled"
     - keystone_init_state.rc != 0
   ignore_errors: yes
-  tags: [ keystone  ]
+  tags: [ keystone ]
 ##################################################
 - name: ------- create new users in keystone -------
   ansible.builtin.shell: >
-    openstack --project-name "{{ openstack_project }}" 
+    openstack --os-project-name  "{{ openstack_project }}" 
     user create 
     --project "{{ openstack_project }}"
     --password "{{ controller_os_password }}" "{{ item }}"  
@@ -297,20 +297,23 @@
     - keystone == "enabled"
     - check_users.rc != 1 
   
-  tags: [ keystone ,s]
+  tags: [ keystone ]
   ignore_errors: yes
 #############################################################################
 - name: Add admin role to service users
-  shell: >
-    openstack  --os-project-name "{{ openstack_project }}" 
-      role add --project "{{ openstack_project }}"
-      --user "{{ item.name }}" 
-      --user-domain "{{ openstack_domain }}" admin
+  shell: |
+    openstack --os-auth-url "http://172.16.1.2:5000/v3" \
+      --os-project-name "{{ openstack_project }}" \
+      --os-username "admin" \
+      --os-user-domain-name "{{ openstack_domain }}" \
+      --os-project-domain-name "{{ openstack_domain }}" \
+      role add --project "{{ openstack_project }}" --user "{{ item.user }}" admin
   with_items: "{{ openstack_services }}"
   register: role_add
   when:
     - keystone == "enabled"
-    - check_users.rc == 0
+    - check_users.rc != 1 
+
   tags: [ keystone ]
 ##################################################################################
 #services doesnt related to project scope 

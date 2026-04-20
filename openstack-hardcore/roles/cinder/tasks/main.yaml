@@ -1,0 +1,65 @@
+- name: ----- install pre-requisite  controll plane -----
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - cinder-api 
+    - cinder-scheduler
+  tags: [ cinder ]
+  when: 
+    - cinder == "enabled"
+
+
+
+- name: Deploy cinder configuration
+  template:
+    src: cinder.conf.j2
+    dest: /etc/cinder/cinder.conf
+    owner: cinder
+    group: cinder
+    mode: '0640'
+  notify: cinder_restart
+  tags: [ cinder , copy_cinder ]
+  when: 
+    - cinder == "enabled"
+
+
+- name: Check if cinder DB has been synced before
+  stat:
+    path: /etc/cinder/.ansible_db_synced
+  register: check_marker
+  tags: [ cinder ]
+
+
+- name: "----- Sync cinder Database via Shell -----"
+  shell: |
+    su -s /bin/sh -c "cinder-manage db_sync" cinder
+  register: sync_result
+  become: yes
+  when: 
+    - cinder == "enabled"
+    - not check_marker.stat.exists
+  notify: cinder_restart
+  tags: [ cinder ]
+
+
+- name: Create history marker (The State File)
+  file:
+    path: /etc/cinder/.ansible_db_synced
+    state: touch
+    owner: cinder
+    group: cinder
+    mode: '0644'
+  become: yes
+  when: 
+    - cinder == "enabled"
+    - sync_result is succeeded    
+    - sync_result is not skipped
+  run_once: true
+  tags: [ cinder ]
+
+#You should add this under auth_token
+# project_domain_name = Default
+# user_domain_name = Default
+

@@ -85,12 +85,12 @@
     priv: "{{ item.db }}.*:ALL"
     host: "%"
     state: present
+    append_privs: yes  
     login_user: root
     login_password: "{{ mysql_root_password }}"
   loop: "{{ openstack_services }}"
   when: 
     - mysql == "enabled"
-    - mysql_check.rc == 0
-  tags: [ mysql ]
+  tags: [ mysql, db ]
   async: 60
   poll: 0

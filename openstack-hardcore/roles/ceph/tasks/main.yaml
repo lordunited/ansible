@@ -1,0 +1,373 @@
+- name: Gather installed package facts
+  package_facts:
+    manager: auto
+  when: ceph == "enabled"
+  tags: [ ceph_inst ]
+
+
+- name: Check if Docker is installed
+  set_fact:
+    docker_installed: "{{ 'docker-ce' in ansible_facts.packages }}"
+  when: ceph == "enabled"
+  tags: [ ceph_inst ]
+
+
+- name: Install prerequisites
+  apt:
+    name:
+      - software-properties-common
+      - python3-pip
+    state: present
+    update_cache: yes
+  tags: [ ceph_inst ]
+  when: ceph == "enabled"
+
+
+
+- name: Add Ceph repository key
+  get_url:
+    url: https://download.ceph.com/keys/release.asc
+    dest: /etc/apt/keyrings/ceph.asc
+    mode: '0644'
+  tags: [ ceph_inst ]
+  when: ceph == "enabled"
+
+- name: Add Ceph Reef repository (use jammy for noble)
+  apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/ceph.asc] https://download.ceph.com/debian-reef/ jammy main"
+    state: present
+    filename: ceph
+  when: ceph == "enabled"
+  tags: [ ceph_inst ]
+
+- name: Install cephadm (modern deployment tool)
+  apt:
+    name: cephadm
+    state: present
+  tags: [ ceph_inst ]
+  when: monitor == "enabled"
+
+
+- name: install docker services on all nodes
+  apt: 
+    name: "{{ item }}"
+    state: present
+  with_items:
+  - ca-certificates
+  - curl
+  tags: [ ceph_inst ]
+  when: 
+  - ceph == "enabled"
+  - not docker_installed
+
+
+- name: Ensure keyrings directory exists
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  become: true
+  tags: [ ceph_inst ]
+  when: 
+  - ceph == "enabled"
+  - not docker_installed
+
+- name: Download Docker GPG key
+  get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+  become: true
+  tags: [ ceph_inst ]
+  when: 
+  - ceph == "enabled"
+  - not docker_installed
+
+
+- name: Add Docker repository
+  copy:
+    dest: /etc/apt/sources.list.d/docker.sources
+    content: |
+      Types: deb
+      URIs: https://download.docker.com/linux/ubuntu
+      Suites: {{ ansible_distribution_release }}
+      Components: stable
+      Signed-By: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+  tags: [ ceph_inst ]
+  when: 
+  - ceph == "enabled"
+  - not docker_installed
+
+
+# - name: Update apt cache
+#   apt:
+#     update_cache: yes
+#   tags: [ ceph ]
+#   when: 
+#   - ceph == "enabled"
+#   - not docker_installed
+
+
+- name: Install Docker packages
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+
+  when: 
+  - ceph == "enabled"
+  - not docker_installed
+  tags: [ ceph_inst ]
+
+
+
+
+# Ceph Monitors Setup
+- name: Create Ceph cluster directory
+  file:
+    path: /etc/ceph
+    state: directory
+    mode: '0755'
+  tags: [ ceph_inst ]
+  when: monitor == "enabled"
+
+- name: Bootstrap Ceph cluster
+  shell: >
+    cephadm bootstrap
+    --mon-ip {{ initial_ceph_mon }}
+    --cluster-network {{ ceph_cluster_network }}
+    --skip-monitoring-stack 
+    --initial-dashboard-user {{ dashboard_username }}
+    --initial-dashboard-password {{ dashboard_password }}
+    --dashboard-password-noupdate
+    --skip-pull
+  args:
+    creates: /etc/ceph/ceph.conf
+  tags: [ ceph_inst ]
+  when: hostname == "ubuntu-01"
+
+
+
+- name: Check Ceph cluster status
+  shell: ceph status
+  register: ceph_status
+  ignore_errors: yes
+  when: hostname == "ubuntu-01"
+  tags: [ ceph_check ]
+
+- name: Display Ceph cluster status
+  debug:
+    var: ceph_status.stdout
+  when: hostname == "ubuntu-01"
+  tags: [  ceph_check ]
+
+
+
+
+
+
+- name: Add additional monitor nodes
+  shell: "ceph orch host add {{ item }}"
+  loop: "{{ ceph_mon_nodes[1:] }}"  # skip bootstrap
+  tags: [ceph]
+
+
+###configure /etc/hots on every nodes
+# # Ceph OSDs Setup
+# - name: Configure Ceph OSDs
+#   hosts: ceph_osd_nodes
+#   become: yes
+#   vars:
+#     osd_devices:
+#       - /dev/sdb
+#       - /dev/sdc
+#       - /dev/sdd
+  
+#   tasks:
+#     - name: Wipe disks for OSD use
+#       command: "wipefs -a {{ item }}"
+#       loop: "{{ osd_devices }}"
+#       when: wipe_disks | default(false)
+
+#     - name: Create OSDs
+#       command: "ceph-volume lvm create --data {{ item }}"
+#       loop: "{{ osd_devices }}"
+#       register: osd_create
+#       failed_when: false
+
+# # OpenStack Integration
+# - name: Configure Ceph for OpenStack
+#   hosts: ceph_mon_nodes[0]
+#   become: yes
+#   tasks:
+#     - name: Create Ceph pools for OpenStack
+#       command: "ceph osd pool create {{ item.name }} {{ item.pg_num }}"
+#       loop:
+#         - { name: "volumes", pg_num: 128 }
+#         - { name: "vms", pg_num: 128 }
+#         - { name: "images", pg_num: 128 }
+#       register: pool_create
+#       failed_when: false
+
+#     - name: Initialize RBD pools
+#       command: "rbd pool init {{ item }}"
+#       loop:
+#         - volumes
+#         - vms
+#         - images
+
+#     - name: Create Ceph user for Cinder
+#       command: >
+#         ceph auth get-or-create client.cinder
+#         mon 'profile rbd'
+#         osd 'profile rbd pool=volumes, profile rbd pool=vms, profile rbd-read-only pool=images'
+#         mgr 'profile rbd pool=volumes, profile rbd pool=vms'
+#       register: cinder_key
+
+#     - name: Create Ceph user for Glance
+#       command: >
+#         ceph auth get-or-create client.glance
+#         mon 'profile rbd'
+#         osd 'profile rbd pool=images'
+#         mgr 'profile rbd pool=images'
+#       register: glance_key
+
+#     - name: Create Ceph user for Nova
+#       command: >
+#         ceph auth get-or-create client.nova
+#         mon 'profile rbd'
+#         osd 'profile rbd pool=vms, profile rbd-read-only pool=images'
+#         mgr 'profile rbd pool=vms'
+#       register: nova_key
+
+#     - name: Export Ceph keyrings
+#       shell: "ceph auth get client.{{ item }} -o /etc/ceph/ceph.client.{{ item }}.keyring"
+#       loop:
+#         - cinder
+#         - glance
+#         - nova
+
+#     - name: Fetch ceph.conf to controller
+#       fetch:
+#         src: /etc/ceph/ceph.conf
+#         dest: /tmp/ceph.conf
+#         flat: yes
+
+#     - name: Fetch keyrings to controller
+#       fetch:
+#         src: "/etc/ceph/ceph.client.{{ item }}.keyring"
+#         dest: "/tmp/ceph.client.{{ item }}.keyring"
+#         flat: yes
+#       loop:
+#         - cinder
+#         - glance
+#         - nova
+
+# # Controller Node - Install Ceph client and configure Cinder
+# - name: Configure OpenStack Controller for Ceph
+#   hosts: controller
+#   become: yes
+#   tasks:
+#     - name: Install Ceph client packages
+#       apt:
+#         name:
+#           - ceph-common
+#           - python3-rbd
+#         state: present
+
+#     - name: Create /etc/ceph directory
+#       file:
+#         path: /etc/ceph
+#         state: directory
+#         mode: '0755'
+
+#     - name: Copy Ceph configuration
+#       copy:
+#         src: /tmp/ceph.conf
+#         dest: /etc/ceph/ceph.conf
+#         mode: '0644'
+
+#     - name: Copy Ceph keyrings
+#       copy:
+#         src: "/tmp/ceph.client.{{ item }}.keyring"
+#         dest: "/etc/ceph/ceph.client.{{ item }}.keyring"
+#         mode: '0640'
+#         owner: "{{ item }}"
+#         group: "{{ item }}"
+#       loop:
+#         - cinder
+#         - glance
+#         - nova
+
+#     - name: Configure Cinder for Ceph backend
+#       ini_file:
+#         path: /etc/cinder/cinder.conf
+#         section: "{{ item.section }}"
+#         option: "{{ item.option }}"
+#         value: "{{ item.value }}"
+#       loop:
+#         - { section: "DEFAULT", option: "enabled_backends", value: "ceph" }
+#         - { section: "DEFAULT", option: "glance_api_servers", value: "http://{{ controller_ip }}:9292" }
+#         - { section: "DEFAULT", option: "glance_api_version", value: "2" }
+#         - { section: "ceph", option: "volume_driver", value: "cinder.volume.drivers.rbd.RBDDriver" }
+#         - { section: "ceph", option: "volume_backend_name", value: "ceph" }
+#         - { section: "ceph", option: "rbd_pool", value: "volumes" }
+#         - { section: "ceph", option: "rbd_ceph_conf", value: "/etc/ceph/ceph.conf" }
+#         - { section: "ceph", option: "rbd_user", value: "cinder" }
+#         - { section: "ceph", option: "rbd_flatten_volume_from_snapshot", value: "false" }
+#         - { section: "ceph", option: "rbd_max_clone_depth", value: "5" }
+#         - { section: "ceph", option: "rados_connect_timeout", value: "-1" }
+#       notify: restart cinder services
+
+#     - name: Restart Cinder services
+#       systemd:
+#         name: "{{ item }}"
+#         state: restarted
+#         enabled: yes
+#       loop:
+#         - cinder-api
+#         - cinder-scheduler
+#         - cinder-volume
+#         - cinder-backup
+
+#     - name: Create Ceph volume type
+#       command: >
+#         openstack volume type create ceph
+#       environment:
+#         OS_USERNAME: admin
+#         OS_PASSWORD: "{{ admin_password }}"
+#         OS_AUTH_URL: http://{{ controller_ip }}:5000/v3
+#         OS_PROJECT_NAME: admin
+#         OS_USER_DOMAIN_NAME: Default
+#         OS_PROJECT_DOMAIN_NAME: Default
+#       register: volume_type_create
+#       failed_when: false
+
+#     - name: Set Ceph volume type properties
+#       command: >
+#         openstack volume type set ceph
+#         --property volume_backend_name=ceph
+#       environment:
+#         OS_USERNAME: admin
+#         OS_PASSWORD: "{{ admin_password }}"
+#         OS_AUTH_URL: http://{{ controller_ip }}:5000/v3
+#         OS_PROJECT_NAME: admin
+#         OS_USER_DOMAIN_NAME: Default
+#         OS_PROJECT_DOMAIN_NAME: Default
+
+#   handlers:
+#     - name: restart cinder services
+#       systemd:
+#         name: "{{ item }}"
+#         state: restarted
+#       loop:
+#         - cinder-api
+#         - cinder-scheduler
+#         - cinder-volume
+#         - cinder-backup

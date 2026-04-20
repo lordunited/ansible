@@ -241,14 +241,18 @@ auth_strategy = keystone
 
 
 [keystone_authtoken]
-os_region_name = RegionOne
-project_domain_name = Default
-project_name = service
+
+auth_url = http://{{ controller_internal_address }}:5000
+project_name = services
+www_authenticate_uri = http://172.16.1.2:5000
+project_name = {{ openstack_project }}
+user_domain_name = {{ openstack_domain }}
 auth_type = password
-user_domain_name = Default
-auth_url = http://{{ controller_internal_address }}:5000/v3
 username = {{ placement_username }}
 password = {{ placement_password }}
+os_region_name = RegionOne
+
+
 #
 # From keystonemiddleware.auth_token
 #

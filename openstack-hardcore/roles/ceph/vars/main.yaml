@@ -1,0 +1,6 @@
+ceph_mon_nodes: ["ceph-mon1", "ceph-mon2", "ceph-mon3"]
+ceph_osd_nodes: ["ceph-osd1", "ceph-osd2", "ceph-osd3"]
+initial_ceph_mon: "172.17.1.2"
+ceph_cluster_network: "172.17.1.0/24"
+dashboard_username:  "admin"
+dashboard_password: "admin"

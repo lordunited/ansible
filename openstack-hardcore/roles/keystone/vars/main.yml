@@ -21,3 +21,6 @@ openstack_services:
   - { name: "placement", user: "placement", db: "placement", pass: "YourSecurePasswordHERE",path: '/v2.1'  }
 openstack_project: "services"
 openstack_domain: "default"
+rabbitmq_address: "172.16.1.2"
+rabbitmq_username: admin
+rabbitmq_password: admin

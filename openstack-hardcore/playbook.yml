@@ -1,5 +1,5 @@
 ---
-- hosts: all
+- hosts: openstack
   become: yes
   remote_user: root 
   become_user: root
@@ -14,8 +14,8 @@
    - neutron
    - nova
    - dashboard
-
-
+   - ceph
+   - cinder
   environment:
     OS_AUTH_URL: http://172.16.1.2:5000/v3
     OS_USERNAME: admin

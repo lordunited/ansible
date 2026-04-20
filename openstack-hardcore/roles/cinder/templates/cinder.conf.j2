@@ -1,0 +1,26 @@
+[DEFAULT]
+rootwrap_config = /etc/cinder/rootwrap.conf
+api_paste_confg = /etc/cinder/api-paste.ini
+iscsi_helper = lioadm
+volume_name_template = volume-%s
+volume_group = cinder-volumes
+verbose = True
+auth_strategy = keystone
+state_path = /var/lib/cinder
+lock_path = /var/lock/cinder
+volumes_dir = /var/lib/cinder/volumes
+enabled_backends = lvm
+
+[database]
+connection = mysql://{{ cinder_db_user }}:{{ cinder_db_password }}@{{ cinder_db_address }}/cinder
+
+[keystone_authtoken]
+auth_url = http://{{ keystone_address  }}:5000
+username = {{ cinder_keystone_user  }}
+project_name = {{ openstack_project }}
+www_authenticate_uri = http://{{ keystone_address  }}:5000
+project_domain_name = {{ openstack_domain }}
+user_domain_name = {{ openstack_domain }}
+memcached_servers = {{ memcached_ip  }}:11211
+auth_type = password
+password = {{ cinder_keystone_password }}

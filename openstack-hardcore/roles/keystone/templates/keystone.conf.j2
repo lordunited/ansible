@@ -1,5 +1,6 @@
 [DEFAULT]
 log_dir = /var/log/keystone
+transport_url = rabbit://{{ rabbitmq_username }}:{{ rabbitmq_password }}@{{ rabbitmq_address }}
 
 #
 # From keystone

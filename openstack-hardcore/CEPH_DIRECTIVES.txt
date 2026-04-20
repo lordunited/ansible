@@ -1,0 +1,76 @@
+####1️⃣ WAL / Block-WAL Specific Options
+| Option                                  | Default                 | Purpose / Effect                                                                                        |
+| --------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| `bluestore_cache_autotune`              | `true`                  | Automatically tunes memory cache sizes and flushing for Bluestore; affects WAL throughput indirectly.   |
+| `osd_memory_target`                     | auto (~6G HDD / 12G SSD) | Amount of RAM used for BlueStore metadata caches; higher memory reduces WAL flush pressure.             |
+| `osd_op_threads_per_shard`              | 1                       | Number of threads per shard processing client operations; affects parallel WAL appends.                 |
+| `osd_op_num_shards`                     | 1                       | Number of shards (parallel queues) per OSD; more shards → more concurrent WAL commits.                  |
+| `bluestore_block_wal_size`              | internal                | Size of WAL buffer; usually small; cannot directly change in ceph.conf (set by device size).            |
+| `osd_recovery_op_priority`              | 3                       | Priority of recovery writes; low priority reduces WAL contention during recovery.                       |
+| `osd_client_op_priority`                | 63                      | Priority of client writes; higher value may increase WAL pressure under load.                           |
+| `bluestore_min_alloc_size`              | 4K                      | Minimum allocation unit for BlueStore extents; smaller allocations increase WAL activity.               |
+| `bluestore_compression_mode`            | `none`                  | Compression increases metadata and WAL activity; impacts WAL performance.                               |
+| `bluestore_prefer_deferred_size_update` | `true`                  | Defers metadata updates → fewer WAL writes; improves WAL throughput at the cost of longer crash replay. |
+2️⃣ OSD Bluestore General Tuning Options
+| Option                    | Default                | Effect on WAL / OSD                                                                                                  |
+| ------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `bluestore_block_db`      | `/dev/sdX` (colocated) | DB device placement; moving to fast NVMe reduces WAL latency indirectly.                                             |
+| `bluestore_block_wal`     | `/dev/sdX` (colocated) | WAL device placement; isolating improves WAL fsync performance, especially on HDD clusters.                          |
+| `osd_max_backfills`       | 1–2                    | Number of concurrent backfill threads; affects WAL throughput indirectly because recovery competes with WAL flushes. |
+| `osd_recovery_max_active` | 1–2                    | Max concurrent recovery ops; reduces WAL pressure when low.                                                          |
+| `osd_scrub_sleep`         | 0                      | Time to sleep between scrub ops; scrubs generate WAL metadata; tuning reduces latency spikes.                        |
+| `osd_scrub_chunk_max`     | 3MB                    | Chunk size per scrub write; smaller chunks → more WAL updates.                                                       |
+| `osd_op_queue`            | internal               | Controls client op queue; indirectly impacts WAL commit bursts.                                                      |
+| `bluestore_max_blob_size` | 4MB                    | Max object write in a single blob; smaller blobs → more WAL transactions.                                            |
+3️⃣ Kernel / Filesystem / OS Options Affecting WAL
+| Setting                                                | Purpose                                                                                |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `vm.swappiness = 1`                                    | Reduce swapping; keeps WAL buffers in RAM.                                             |
+| `vm.dirty_ratio = 10`, `vm.dirty_background_ratio = 3` | Control background flush frequency; affects WAL flush behavior indirectly.             |
+| Disable `transparent_hugepage`                         | THP interferes with RocksDB and WAL memory allocations.                                |
+| `io.scheduler = none` (NVMe)                           | Prevents extra queuing latency; reduces WAL commit latency.                            |
+| `net.core.netdev_max_backlog = 300k`                   | Ensures network packets don’t block OSD threads; WAL latency sensitive to stalled CPU. |
+| `tcp_congestion_control = bbr`                         | Reduces network stalls affecting OSD commit latency.                                   |
+4️⃣ Advanced OSD Tuning (High-Load / SSD Clusters)
+| Option                            | Effect                                                                                        |
+| --------------------------------- | --------------------------------------------------------------------------------------------- |
+| `bluestore_min_alloc_size`        | Smaller allocation → more WAL writes per small object; tuning can help for many small writes. |
+| `osd_recovery_sleep`              | Inserts sleep between recovery writes; reduces WAL pressure under backfill.                   |
+| `bluestore_fsck_on_mount`         | Disable unnecessary fsck; reduces WAL contention during startup.                              |
+| `osd_journal`                     | Legacy; only for FileStore. Ignored in Bluestore.                                             |
+| `osd_throttle_io`                 | Limits max IOPS/MB; can reduce WAL device saturation.                                         |
+| `bluestore_block_wal_size`        | Only indirectly tunable via device size; affects maximum WAL buffer.                          |
+| `bluestore_compression_algorithm` | lz4/zstd affect WAL size indirectly; heavier compression → more CPU, more WAL flush pressure. |
+5️⃣ OSD Sharding / Parallelism (WAL-Related)
+[osd]
+osd_op_num_shards = 8
+osd_op_threads_per_shard = 2
+-----------------------------------------------------
+4️⃣ NUMA / CPU Pinning
+
+Check NUMA nodes:
+
+numactl --hardware
+
+Pin OSD threads to local memory:
+
+taskset -c <core_list> ceph-osd -i <ID>
+------------------------------------------------------
+6️⃣ Network Recommendations
+
+Hyperconverged → ideally dual NICs:
+
+NIC1 → VM traffic (public)
+NIC2 → Ceph replication/backfill (cluster)
+
+Enable jumbo frames (MTU 9000)
+
+Enable msgr2 protocol only:
+
+ms_bind_msgr2 = true
+ms_bind_msgr1 = false
+
+Monitor latency:
+
+ceph daemon osd.X perf dump | jq '.bluestore'
+-----------------------------------------------------------

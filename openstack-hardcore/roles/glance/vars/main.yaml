@@ -4,4 +4,9 @@ glance_keystone_password: "YourSecurePasswordHERE"
 glance_db_password: "YourSecurePasswordHERE"
 glance_db_address: "172.16.1.2"
 memcached_ip: 172.16.1.2
-  
+rabbitmq_address: "172.16.1.2"
+rabbitmq_username: admin
+rabbitmq_password: admin
+openstack_project: "services"
+openstack_domain: "default"
+keystone_address: "172.16.1.2"

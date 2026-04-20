@@ -1,0 +1,8 @@
+openstack_domain: "default"
+openstack_project: "services"
+cinder_db_user: "cinder"
+cinder_keystone_user: "cinder"
+cinder_keystone_password: "YourSecurePasswordHERE"
+cinder_db_password: "YourSecurePasswordHERE"
+cinder_db_address: "172.16.1.2"
+memcached_ip: 172.16.1.2

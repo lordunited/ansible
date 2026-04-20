@@ -15,7 +15,7 @@
   when: 
     - keystone == "enabled"
   tags: [ placement ]
-
+  ignore_errors: true
 
 - name: ----- create new user ------
   shell: >
@@ -23,7 +23,7 @@
     user create --domain default  "{{ placement_username }}" --password  "{{ placement_password }}"
   when: 
     - keystone == "enabled"
-    - check_users_placement.rc == 0  
+    - check_users_placement.rc != 0
   tags: [ placement ]
   ignore_errors: true
 
@@ -36,7 +36,7 @@
   register: role_add
   when:
     - keystone == "enabled"
-    - check_users_placement.rc == 0  
+    - check_users_placement.rc != 0
   tags: [ placement ]
 
 
@@ -54,10 +54,7 @@
 
 - name: create placement service
   shell: >
-    openstack --os-project-name {{ openstack_project }}
-    --name placement
-    --description "Placement API"
-    placement
+    openstack  --os-project-name {{ openstack_project }} service create --name placement --description "OpenStack placement Service"  placement
   when:
     - keystone == "enabled"
     - placement_service.stdout == ""

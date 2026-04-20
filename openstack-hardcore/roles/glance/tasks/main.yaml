@@ -5,6 +5,8 @@
     update_cache: yes
   with_items:
     - glance
+    - glance-api
+    - 
     - python3-glanceclient  
     - python3-rbd #rbd driver for glance
   tags: [ glance ]

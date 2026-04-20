@@ -12,9 +12,13 @@
     - openvswitch-switch
     - neutron-l3-agent 
     - neutron-metadata-agent
+    - python3-neutronclient
+    - neutron-linuxbridge-agent
   tags: [ neutron ]
   when: 
     - neutron_controll == "enabled"
+
+
 
 - name: ----- install pre-requisite  compute plane -----
   apt:

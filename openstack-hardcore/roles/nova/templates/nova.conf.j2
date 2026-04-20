@@ -1882,7 +1882,7 @@ connection = "mysql+pymysql://{{ nova_user_db_user }}:{{ nova_user_db_password }
 
 
 [database]
-connection = mysql+pymsql://{{ nova_user_db_user }}:{{ nova_user_db_password }}@{{ nova_database_address }}/nova
+connection = mysql+pymysql://{{ nova_user_db_user }}:{{ nova_user_db_password }}@{{ nova_database_address }}/nova
 
 # The *Nova Database* is the primary database which is used for information
 # local to a *cell*.
@@ -2190,15 +2190,15 @@ connection = mysql+pymsql://{{ nova_user_db_user }}:{{ nova_user_db_password }}@
 
 
 [glance]
-api_servers = "http://{{  glance_address }}:9292"
-auth_url = "http://{{  keystone_address }}:5000"
-username = "{{ glance_user }}"
-project_name = service
-www_authenticate_uri = "http://{{ keystone_address }}:5000"
-project_domain_name = Default
-user_domain_name = Default
-memcached_servers = "{{ memcached_adddress }}:11211"
-password = "{{ glance_password }}"
+api_servers = http://{{  glance_address }}:9292
+auth_url = http://{{  keystone_address }}:5000
+username = {{ glance_user }}"
+project_name = {{ openstack_project}}
+www_authenticate_uri = http://{{ keystone_address }}:5000
+project_domain_name = {{ openstack_domain }}
+user_domain_name = {{ openstack_domain }}
+memcached_servers = {{ memcached_adddress }}:11211
+password = {{ glance_password }}
 
 
 # DEPRECATED:
@@ -2826,11 +2826,11 @@ password = "{{ glance_password }}"
 [keystone_authtoken]
 auth_url = http://{{ controller_internal_address  }}:5000
 username = {{ nova_keystone_user  }} 
-project_name = service
+project_name = {{ openstack_project }}
 www_authenticate_uri = http://{{ controller_internal_address  }}:5000
-project_domain_name = Default
-user_domain_name = Default
-password =  {{ nova_keystone_password  }}
+project_domain_name = {{ openstack_domain }}
+user_domain_name = {{  openstack_domain }}
+password = {{ nova_keystone_password  }}
 memcached_servers = {{ memcached_adddress  }}:11211
 auth_type = password
 
@@ -4793,10 +4793,10 @@ rabbit_password = {{ rabbitmq_admin_password }}
 [placement]
 region_name = RegionOne
 
-project_domain_name = Default
-project_name = service
+project_domain_name = {{ openstack_domain }}
+project_name = {{ openstack_services }}
 auth_type = password
-user_domain_name = Default
+user_domain_name = {{ openstack_domain }}
 auth_url = http://{{ keystone_address }}:5000/v3
 username = {{ placement_controller_user }}
 password = {{ placement_controller_password }}
@@ -5274,14 +5274,14 @@ region_name = RegionOne
 
 
 [service_user]
-auth_url = http://"{{ keystone_address }}":5000
+auth_url = http://{{ keystone_address }}:5000
 auth_type = password
 project_domain_name = Default
 user_domain_name = Default
 region_name = RegionOne
-project_name = service
-username = "{{ nova_controller_user }}"
-password = "{{ nova_controller_password }}"
+project_name = {{ openstack_project }}
+username = {{ nova_controller_user }}
+password = {{ nova_controller_password }}
 service_metadata_proxy = true
 metadata_proxy_shared_secret = METADATA_SECRET
 
