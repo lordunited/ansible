@@ -2,14 +2,14 @@
   package_facts:
     manager: auto
   when: ceph == "enabled"
-  tags: [ ceph_inst ]
+  tags: [ ceph ]
 
 
 - name: Check if Docker is installed
   set_fact:
     docker_installed: "{{ 'docker-ce' in ansible_facts.packages }}"
   when: ceph == "enabled"
-  tags: [ ceph_inst ]
+  tags: [ ceph ]
 
 
 - name: Install prerequisites
@@ -19,7 +19,7 @@
       - python3-pip
     state: present
     update_cache: yes
-  tags: [ ceph_inst ]
+  tags: [ ceph ]
   when: ceph == "enabled"
 
 
@@ -29,7 +29,7 @@
     url: https://download.ceph.com/keys/release.asc
     dest: /etc/apt/keyrings/ceph.asc
     mode: '0644'
-  tags: [ ceph_inst ]
+  tags: [  ceph ]
   when: ceph == "enabled"
 
 - name: Add Ceph Reef repository (use jammy for noble)
@@ -38,13 +38,13 @@
     state: present
     filename: ceph
   when: ceph == "enabled"
-  tags: [ ceph_inst ]
+  tags: [  ceph ]
 
 - name: Install cephadm (modern deployment tool)
   apt:
     name: cephadm
     state: present
-  tags: [ ceph_inst ]
+  tags: [  ceph ]
   when: monitor == "enabled"
 
 
@@ -57,8 +57,9 @@
   - curl
   tags: [ ceph_inst ]
   when: 
-  - ceph == "enabled"
   - not docker_installed
+
+  tags: [  ceph ]
 
 
 - name: Ensure keyrings directory exists
@@ -67,7 +68,7 @@
     state: directory
     mode: '0755'
   become: true
-  tags: [ ceph_inst ]
+  tags: [  ceph ]
   when: 
   - ceph == "enabled"
   - not docker_installed
@@ -78,7 +79,7 @@
     dest: /etc/apt/keyrings/docker.asc
     mode: '0644'
   become: true
-  tags: [ ceph_inst ]
+  tags: [  ceph ]
   when: 
   - ceph == "enabled"
   - not docker_installed
@@ -94,7 +95,7 @@
       Components: stable
       Signed-By: /etc/apt/keyrings/docker.asc
     mode: '0644'
-  tags: [ ceph_inst ]
+  tags: [  ceph ]
   when: 
   - ceph == "enabled"
   - not docker_installed
@@ -123,7 +124,7 @@
   when: 
   - ceph == "enabled"
   - not docker_installed
-  tags: [ ceph_inst ]
+  tags: [  ceph ]
 
 
 
@@ -134,7 +135,7 @@
     path: /etc/ceph
     state: directory
     mode: '0755'
-  tags: [ ceph_inst ]
+  tags: [  ceph ]
   when: monitor == "enabled"
 
 - name: Bootstrap Ceph cluster
@@ -149,7 +150,7 @@
     --skip-pull
   args:
     creates: /etc/ceph/ceph.conf
-  tags: [ ceph_inst ]
+  tags: [  ceph ]
   when: hostname == "ubuntu-01"
 
 
@@ -159,47 +160,84 @@
   register: ceph_status
   ignore_errors: yes
   when: hostname == "ubuntu-01"
-  tags: [ ceph_check ]
+  tags: [  ceph ]
 
 - name: Display Ceph cluster status
   debug:
     var: ceph_status.stdout
   when: hostname == "ubuntu-01"
-  tags: [  ceph_check ]
+  tags: [  ceph ]
 
 
 
+- name: Generate /etc/hosts for all nodes
+  lineinfile:
+    path: /etc/hosts
+    # Match the IP at the start of the line
+    regexp: "^{{ hostvars[item]['host_ip'] }}.*"
+    # Format: IP Hostname
+    line: "{{ hostvars[item]['host_ip'] }} {{ hostvars[item]['hostname'] }}"
+    state: present
+  # Loop through every host in your [openstack] group
+  loop: "{{ groups['openstack'] }}"
+  # This runs on the target, but pulls data from the whole inventory
+  delegate_to: "{{ inventory_hostname }}"
+  tags: [  ceph ]
+
+
+- name: generate ceph pub on mon nodes
+  shell: 'ssh-copy-id -o "StrictHostKeyChecking=no" -f -i /etc/ceph/ceph.pub root@{{ item }}'
+  loop: "{{ ceph_mon_nodes[1:] }}"  # skip bootstrap
+  tags: [ceph]
+  when: hostname == "ubuntu-01"
+
+
+- name: generate ceph pub on osd nodes
+  shell: 'ssh-copy-id -o "StrictHostKeyChecking=no" -f -i /etc/ceph/ceph.pub root@{{ item }}'
+  loop: "{{ ceph_osd_nodes }}"  # skip bootstrap
+  tags: [ceph]
+  when: hostname == "ubuntu-01"
 
 
 
-- name: Add additional monitor nodes
+- name: Add additional  nodes
   shell: "ceph orch host add {{ item }}"
   loop: "{{ ceph_mon_nodes[1:] }}"  # skip bootstrap
   tags: [ceph]
+  when: hostname == "ubuntu-01"
 
 
-###configure /etc/hots on every nodes
-# # Ceph OSDs Setup
-# - name: Configure Ceph OSDs
-#   hosts: ceph_osd_nodes
-#   become: yes
-#   vars:
-#     osd_devices:
-#       - /dev/sdb
-#       - /dev/sdc
-#       - /dev/sdd
+- name: Add additional  nodes
+  shell: "ceph orch host add {{ item }}"
+  loop: "{{ ceph_osd_nodes[1:] }}"  # skip bootstrap
+  tags: [ceph]
+  when: hostname == "ubuntu-01"
+
+
+- name: Apply monitor placement policy
+  shell: "ceph orch apply mon --placement='{{ ceph_mon_nodes | join(',') }}'"
+  delegate_to: 172.16.1.2
+  run_once: true
+  tags: [ceph_inst]
+
+
+
+
+
+
   
-#   tasks:
-#     - name: Wipe disks for OSD use
-#       command: "wipefs -a {{ item }}"
-#       loop: "{{ osd_devices }}"
-#       when: wipe_disks | default(false)
+- name: Wipe disks for OSD use
+  command: "wipefs -a {{ item }}"
+  loop: "{{ osd_devices }}"
+  when: wipe_disks | default(false)
 
-#     - name: Create OSDs
-#       command: "ceph-volume lvm create --data {{ item }}"
-#       loop: "{{ osd_devices }}"
-#       register: osd_create
-#       failed_when: false
+- name: Create OSDs
+  command: "ceph-volume lvm create --data {{ item }}"
+  loop: "{{ osd_devices }}"
+  register: osd_create
+  failed_when: false
+
+
 
 # # OpenStack Integration
 # - name: Configure Ceph for OpenStack
