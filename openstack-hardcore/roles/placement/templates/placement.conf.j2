@@ -243,7 +243,6 @@ auth_strategy = keystone
 [keystone_authtoken]
 
 auth_url = http://{{ controller_internal_address }}:5000
-project_name = services
 www_authenticate_uri = http://172.16.1.2:5000
 project_name = {{ openstack_project }}
 user_domain_name = {{ openstack_domain }}

@@ -1,0 +1,162 @@
+# ceph orch host label add ubuntu-01 ceph-mon-1
+# ceph orch host label add ubuntu-02 ceph-mon-2
+# ceph orch host label add ubuntu-03 ceph-mon-3
+# ceph orch host label add ubuntu-04 ceph-osd-1
+# ceph orch host label add ubuntu-05 ceph-osd-2
+
+# ceph orch host ls
+### list of host added to ceph orchestration
+# ceph status (-s)
+# cephadm list
+### list of cephadm clusters
+
+
+/etc/ceph/ceph.conf
+-> cluster fsid 
+### general config of ceph mons 
+
+-> /var/lib/ceph/osd/ceph-[id]/	
+### The local state, keyrings, BlueStore metadata, and the reference to the LVM block device /dev/sda.
+
+
+-> /var/lib/ceph/df98f5ae-43aa-11f1-8f38-52540006479e/mon.ubuntu-01/store.db/*
+### On each Ceph monitor node, the maps are stored as part of the monitor's local database directory
+### Ceph uses RocksDB (a high-performance, embedded key-value store) to store the data, metadata, and configuration states directly on the host's file system.
+
+
+Types of Cluster Maps:
+--
+ monitors:Map TypeWhat It ContainsMonitor Map (monmap)Cluster FSID, positions, names, IP addresses, and ports of the active monitors.
+ OSD Map (osdmap)Cluster FSID, OSD statuses (up/in), list of pools, and replica sizes.
+ Placement Group (PG) MapPG IDs, Up/Acting sets, and data usage statistics for pools.
+ CRUSH MapDevices, failure domain hierarchy, and rules for object placement.
+ MDS MapMetadata Server information (used if running CephFS)
+--
+# ceph mon dump
+# ceph osd dump.
+
+
+# ceph orch daemon add osd ubuntu-05:/dev/sda
+### daemon: Specifies that you are managing a specific background service (a daemon) rather than a global cluster setting.
+### It accesses /dev/sda on ubuntu-05. If there are old signatures, it wipes them, creates an LVM (Logical Volume Manager) volume, 
+### and configures the drive for the BlueStore storage engine.
+
+# ceph orch device zap ubuntu-05 /dev/vdb 
+
+### cleaning up a storage drive so that it can be reused in the Ceph cluster without throwing errors from leftover configurations or metadata.
+1. What is BlueStore?
+
+### BlueStore is the default storage backend used by Ceph OSDs. Instead of writing data to an underlying filesystem (like XFS or ext4) and dealing with the associated overhead, BlueStore writes data directly to the raw block device.
+2. What Constitutes a "BlueStore Signature"?
+
+### When an OSD is created, BlueStore writes specific identifying metadata and LVM (Logical Volume Manager) tags onto the disk. These signatures include:
+    
+    OSD Superblock: Contains the OSD UUID, the cluster FSID (File System ID), and the creation time.
+    
+    BlueStore Metadata: Identifies the partitions (e.g., the block device for data, the shared metadata path, and any separate WAL or DB partitions).
+    
+    LVM Headers: Metadata that links the device to a Volume Group (VG) and Logical Volume (LV), like ceph-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.
+    
+    These signatures tell the system: "This disk belongs to a specific Ceph OSD."
+
+
+zap: The action you are performing. It tells the orchestrator to completely wipe, format, and erase all file systems, partition tables,
+and BlueStore/LVM metadata from the drive.
+
+
+How BlueStore Works
+
+### In older versions of Ceph, an engine called FileStore was used. FileStore wrote data to a standard Linux filesystem (like XFS), which created unnecessary overhead.
+
+### BlueStore improves on this architecture by interacting with the disk directly:
+
+    Direct Disk Access: BlueStore consumes the raw block device directly, completely bypassing the host's operating system filesystem overhead.
+
+    RocksDB for Metadata: It uses a high-performance, embedded key-value database called RocksDB to store internal metadata, object locations, and allocation maps.
+
+    Raw Storage for Data: The actual data payload is written directly to the raw partition, resulting in lower latency and significantly higher I/O performance.
+
+
+
+The Internal Components of a BlueStore OSD
+
+### When you provision an OSD using BlueStore, the storage device is typically partitioned or mapped into three areas:
+
+    Data Block: The primary, large partition where the actual user data is saved.
+
+    BlueStore DB (Metadata): Houses the RocksDB database, which tracks data placement, allocation, and object indexes (can be placed on a faster NVMe drive for better performance).
+
+    WAL (Write-Ahead Log): A small, high-speed partition used to log incoming writes quickly before they are committed to the data block, ensuring data consistency in the event of power failure.
+
+
+
+Internal Partitioning: BlueStore automatically divides the single disk into three hidden partitions:
+###
+    Block: The main data partition.
+
+    Block.db: The partition for RocksDB metadata.
+
+    Block.wal: The partition for the Write-Ahead Log.
+
+
+
+How it looks on your OSD node (e.g., ubuntu-05)
+
+### On your storage node ubuntu-05, Ceph will create two distinct OSD services. Let's look at how the disk space is divided for both drives:
+    1. Disk 1: /dev/sda (e.g., OSD ID: 0)
+
+    Data Partition (/var/lib/ceph/osd/ceph-0/block)
+
+    Database Partition (/var/lib/ceph/osd/ceph-0/block.db)
+
+    WAL Partition (/var/lib/ceph/osd/ceph-0/block.wal)
+
+    2. Disk 2: /dev/sdb (e.g., OSD ID: 1)
+
+    Data Partition (/var/lib/ceph/osd/ceph-1/block)
+
+    Database Partition (/var/lib/ceph/osd/ceph-1/block.db)
+
+    WAL Partition (/var/lib/ceph/osd/ceph-1/block.wal)
+
+
+-> ceph-volume lvm list
+### inspect osd disks and volumes 
+
+-> ceph orch device ls
+-> ceph orch device ls --hostname=ubuntu-05 --wide
+-> ceph df 
+### ADD disk on osd nodes 
+-> ceph-volume lvm prepare --data /dev/vdb
+-> ceph-volume lvm activate --all
+-> ceph osd tree
+### delete content of osd disks
+-> ceph orch device ls --hostname=ubuntu-05 --wide
+
+
+-> ceph auth get client.bootstrap-osd (/var/lib/ceph/bootstrap-osd/ceph.keyring)
+### credentials to add osd nodes (osd nodes use this cred to login to MONs orchestration )
+ceph orch daemon add osd
+
+
+/etc/ceph/ceph.client.admin.keyring
+### The /etc/ceph/ceph.client.admin.keyring file is one of the most important configuration and security files in a Ceph cluster.
+     It stores the authentication key and access privileges for the cluster's administrative user (client.admin).
+    [client.admin]
+	key = AQB... (base64 encoded secret key)
+	caps mds = "allow *"
+	caps mgr = "allow *"
+	caps mon = "allow *"
+	caps osd = "allow *"
+
+-> ceph osd pool create rbd 64 
+### ceph osd pool create pool-name PG_NUMBER
+
+-> rbd pool init pool-name
+-> ceph osd pool application get pool-name
+-> rbd list pool-name
+### List images in pool
+
+########CONFIGURE CINDER OPENSTACK######################
+-> ceph auth get-or-create client.cinder mon 'allow r' osd 'allow class-read object_prefix rbd_children, allow rwx pool=rbd-openstack'
+### Cinder needs a dedicated user to access the Ceph cluster. Do not use the client.admin key in production.

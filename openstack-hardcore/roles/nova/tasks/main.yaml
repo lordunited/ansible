@@ -5,6 +5,7 @@
     update_cache: yes
   with_items:
     - nova-compute
+    - python3-rbd
   tags: [ nova_compute , nova]
   when: 
     - nova_compute == "enabled"

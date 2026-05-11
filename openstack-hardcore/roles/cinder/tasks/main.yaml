@@ -9,7 +9,21 @@
   tags: [ cinder ]
   when: 
     - cinder == "enabled"
+    - nova_compute == "disabled"
 
+
+
+- name: ----- install pre-requisite  controll plane -----
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - cinder-volume 
+  tags: [ cinder ]
+  when: 
+    - cinder == "enabled"
+    - nova_compute == "enabled"
 
 
 - name: Deploy cinder configuration

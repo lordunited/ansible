@@ -1,7 +1,7 @@
 - name: Gather installed package facts
   package_facts:
     manager: auto
-  when: ceph == "enabled"
+  when: ceph == "enabled" 
   tags: [ ceph ]
 
 
@@ -148,6 +148,7 @@
     --initial-dashboard-password {{ dashboard_password }}
     --dashboard-password-noupdate
     --skip-pull
+
   args:
     creates: /etc/ceph/ceph.conf
   tags: [  ceph ]
@@ -188,14 +189,14 @@
 - name: generate ceph pub on mon nodes
   shell: 'ssh-copy-id -o "StrictHostKeyChecking=no" -f -i /etc/ceph/ceph.pub root@{{ item }}'
   loop: "{{ ceph_mon_nodes[1:] }}"  # skip bootstrap
-  tags: [ceph]
+  tags: [  ceph ]
   when: hostname == "ubuntu-01"
 
 
 - name: generate ceph pub on osd nodes
   shell: 'ssh-copy-id -o "StrictHostKeyChecking=no" -f -i /etc/ceph/ceph.pub root@{{ item }}'
   loop: "{{ ceph_osd_nodes }}"  # skip bootstrap
-  tags: [ceph]
+  tags: [  ceph ]
   when: hostname == "ubuntu-01"
 
 
@@ -216,26 +217,24 @@
 
 - name: Apply monitor placement policy
   shell: "ceph orch apply mon --placement='{{ ceph_mon_nodes | join(',') }}'"
-  delegate_to: 172.16.1.2
+  when: hostname == "ubuntu-01"
   run_once: true
-  tags: [ceph_inst]
-
-
-
-
-
-
+  tags: [  ceph]
   
+
+
+
 - name: Wipe disks for OSD use
-  command: "wipefs -a {{ item }}"
-  loop: "{{ osd_devices }}"
-  when: wipe_disks | default(false)
+  command: wipefs -a {{ osd_device }}
+  when: osd == "enabled"
+  tags: [  ceph_init ]
 
 - name: Create OSDs
-  command: "ceph-volume lvm create --data {{ item }}"
-  loop: "{{ osd_devices }}"
+  command: ceph-volume lvm create --data {{ osd_device }}
   register: osd_create
   failed_when: false
+  tags: [  ceph_init ]
+  when: osd == "enabled"
 
 
 

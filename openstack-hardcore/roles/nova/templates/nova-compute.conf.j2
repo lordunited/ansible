@@ -1101,7 +1101,7 @@ enabled_apis = osapi_compute,metadata
 
 
 [api_database]
-connection = "mysql+pymysql://{{ nova_user_db_user }}:{{ nova_user_db_password }}@{{ nova_database_address }}/nova_api"
+connection = mysql+pymysql://{{ nova_user_db_user }}:{{ nova_user_db_password }}@{{ nova_database_address }}/nova_api
 
 # The *Nova API Database* is a separate database which is used for information
 # which is used across *cells*. This database is mandatory since the Mitaka
@@ -5168,6 +5168,10 @@ region_name = RegionOne
 
 [scheduler]
 
+
+
+
+
 #
 # From nova.conf
 #
@@ -5830,8 +5834,8 @@ metadata_proxy_shared_secret = METADATA_SECRET
 [vnc]
 enabled = true
 server_listen = 0.0.0.0
-server_proxyclient_address = "{{ host_ip }}"
-novncproxy_base_url = http://"{{ host_ip }}":6080/vnc_auto.html
+server_proxyclient_address = {{ host_ip }}
+novncproxy_base_url = http://{{ host_ip }}:6080/vnc_auto.html
 #
 # Virtual Network Computer (VNC) can be used to provide remote desktop
 # console access to instances for tenants and/or administrators.

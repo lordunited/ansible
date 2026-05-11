@@ -10,9 +10,13 @@ state_path = /var/lib/cinder
 lock_path = /var/lock/cinder
 volumes_dir = /var/lib/cinder/volumes
 enabled_backends = lvm
+transport_url = rabbit://openstack:YourRabbitMQPassword@172.16.1.2:5672/
+
+
+
 
 [database]
-connection = mysql://{{ cinder_db_user }}:{{ cinder_db_password }}@{{ cinder_db_address }}/cinder
+connection = mysql+pymysql://{{ cinder_db_user }}:{{ cinder_db_password }}@{{ cinder_db_address }}/cinder
 
 [keystone_authtoken]
 auth_url = http://{{ keystone_address  }}:5000
@@ -24,3 +28,18 @@ user_domain_name = {{ openstack_domain }}
 memcached_servers = {{ memcached_ip  }}:11211
 auth_type = password
 password = {{ cinder_keystone_password }}
+
+
+[ceph]
+restore_discard_excess_bytes = True
+rbd_secret_uuid = 4b5c6d7e-8a9b-0c1d-2e3f-4a5b6c7d8e9f
+rados_connect_timeout = -1
+volume_backend_name = ceph
+volume_driver = cinder.volume.drivers.rbd.RBDDriver
+rbd_store_chunk_size = 4
+glance_api_version =2
+rbd_ceph_conf = /etc/ceph/ceph.conf
+rbd_pool = rbd-openstack
+rbd_flatten_volume_from_snapshot = False
+rbd_max_clone_depth =5
+rbd_user = cinder
