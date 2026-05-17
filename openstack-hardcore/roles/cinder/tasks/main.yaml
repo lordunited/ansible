@@ -13,7 +13,7 @@
 
 
 
-- name: ----- install pre-requisite  controll plane -----
+- name: ----- install pre-requisite  compute node -----
   apt:
     name: "{{ item }}"
     state: present
@@ -24,6 +24,8 @@
   when: 
     - cinder == "enabled"
     - nova_compute == "enabled"
+    - ceph-common
+    - python3-rbd
 
 
 - name: Deploy cinder configuration

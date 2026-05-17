@@ -160,3 +160,143 @@ ceph orch daemon add osd
 ########CONFIGURE CINDER OPENSTACK######################
 -> ceph auth get-or-create client.cinder mon 'allow r' osd 'allow class-read object_prefix rbd_children, allow rwx pool=rbd-openstack'
 ### Cinder needs a dedicated user to access the Ceph cluster. Do not use the client.admin key in production.
+
+
+
+->  ceph osd pool ls
+
+-> ceph mgr services
+### it will tell you exactly where your management interfaces (like the Dashboard or Prometheus) are currently "living.
+
+
+-> ceph dashboard ac-user-create admin -i pass.txt administrator
+-> ceph config set mgr mgr/dashboard/server_addr 0.0.0.0
+-> ceph mgr module disable dashboard
+-> ceph mgr module enable dashboard
+
+
+
+-> rados -p rbd-openstack put object1 secret.xml 
+### you can use this command to put an objet to a pool 
+### Library Loading: The rados tool initializes a session using librados.
+    Configuration: It reads your /etc/ceph/ceph.conf and uses librados to connect to the Monitor nodes.
+    Direct Interaction: Instead of using a high-level "translator" like RBD or CephFS,
+    it uses the librados API to talk to the cluster in its "native" tongue—Objects.
+
+-> rados -p rbd-openstack ls
+### list objects in rbd pool
+
+
+-> ceph osd map rbd-openstack object -f json-pretty
+### Running that command gives you the most detailed "under the hood" look at how Ceph's CRUSH 
+    algorithm has decided to place that specific object.
+
+###
+Phase 1: The Core Architecture (The "How it Works")
+
+    Before touching the CLI, you must understand the math and the map.
+    RADOS Deep Dive: Understand how librados talks to OSDs.
+    CRUSH Maps: Learn how to customize the hierarchy (Host vs. Rack vs. Disk).
+    The Peering Process: Learn how OSDs agree on data state (the "Active+Clean" state).
+    Placement Groups (PGs): Learn the formula for calculating the right number of PGs to avoid "undersized" or "overfilled" clusters.
+
+Phase 3: RBD Advanced Features
+
+This is where you make Ceph "useful" for OpenStack and external clients.
+
+    Thin Provisioning: Understand how RBD only uses space as data is written.
+
+    Snapshots & Clones: Learn Layering. How to take a "Golden Image" and create 100 VMs from it instantly using Copy-on-Write (CoW).
+
+    RBD Mirroring: Set up asynchronous replication between two different Ceph clusters for Disaster Recovery.
+
+    Exclusive Locks: Understand how Ceph prevents two VMs from writing to the same disk at once.
+
+Phase 4: Performance Tuning (The Expert Level)
+
+As a Python dev, this is where you can write scripts to benchmark the cluster.
+
+    OSD BlueStore Tuning: Learn to tune the kv_db and wal (Write Ahead Log) onto fast NVMe drives while keeping bulk data on HDDs.
+
+    Network Tuning: Optimize MTU 9000 (Jumbo Frames). Separate your "Public Network" (Client traffic) from your "Cluster Network" (Replication traffic).
+
+    RBD Cache: Learn to tune rbd_cache_size and rbd_cache_max_dirty on the client side to speed up VM disk I/O.
+
+    Benchmarking: Use rados bench and rbd bench to find the "breaking point" of your OSDs.
+
+
+The Python Project for your Portfolio
+
+To prove your mastery, build this:
+
+    The RBD Auto-Provisioner: Write a Python script using python-rbd and python-rados that automatically
+     creates an RBD image, maps it to a Linux host, formats it with XFS, and mounts it—all triggered by a 
+     simple API call.
+
+
+
+Recommended Tooling to LearnToolPurposeceph-volumeFor managing the physical LVM/disks.rbd-nbdFor 
+mapping RBD images to non-Linux clients or specialized local mounts.
+fioThe industry-standard tool for testing the IOPS of your RBD images.
+
+
+
+
+-> ceph osd pool stats
+-> ceph osd pool stats pool-name
+### list or get stat of a pool
+-> ceph osd lspools
+### list ceph pool 
+
+-> ceph pg ls-by-pool rbd-openstack
+### list,stat pgs of a pool
+->  ceph osd pool get rbd-openstack all
+### get all statistics and information about a pool.
+
+
+########################################POOL SETTING#######################################################
+size: 3 
+### The total number of copies for each object
+min_size: 2  
+### The "Quorum" for I/O. If 2 out of 3 OSDs are down, the PG goes "inactive"
+pg_num: 64  
+### The current number of Placement Groups.
+pgp_num: 64 
+### The number of PGs used for placement. This should always match pg_num.
+crush_rule: replicated_rule 
+### The logic used to place data. Warning: If this is set to the default, it might be mixing your "Cinder" and "Infra" disks. 
+    You likely want to change this to your specific Silo rule.
+hashpspool: true 
+nodelete: false 
+### If true, nobody can delete the pool (even by accident)
+nopgchange: false  
+### If true, you cannot change the pg_num
+nosizechange: false 
+### If true, you cannot change the replica count.
+write_fadvise_dontneed: false
+noscrub: false
+nodeep-scrub: false
+use_gmt_hitset: 1
+fast_read: 0 (Disabled) 
+### If set to 1, Ceph sends read requests to all replicas and returns the first one that responds
+pg_autoscale_mode: on 
+### Ceph will automatically increase pg_num from 64 to a higher number (like 1024) once you start filling the pool
+eio: false
+bulk: false
+########################################POOL SETTING#######################################################
+
+
+What is a "Failure Domain"?
+### A failure domain is the boundary within which a hardware failure happens.
+    If a Disk fails, you lose one OSD.
+    If a Host (Server) fails, you lose all 8 OSDs on that machine.
+    By setting crush-failure-domain=host, you are telling Ceph:
+    "Never put more than one chunk of the same object on the same server."
+
+-> ceph osd crush rule dump replicated_rule
+### In Replication (Size 3): You can lose 2 full servers and the data is still accessible.
+    In EC (4+2): You can lose 2 full servers and the data is still accessible.
+
+->  ceph auth ls 
+### list users in ceph -f json-pretty
+

@@ -58,6 +58,7 @@
 
 
 
+
 # - name: "Update rabbitmq_address with lineinfile for nova"
 #   lineinfile:
 #     path: "/etc/nova/nova.conf"
@@ -464,6 +465,9 @@
 #   when: 
 #     - nova_controll == "enabled"
 #   tags: [ nova_controll,nova_compute]
+
+
+
 - name: sync nova-api db 
   shell: "{{ item }}"
   tags: [ nova_controll,nova_compute , nova]
@@ -477,3 +481,4 @@
   tags: [ nova_controll,nova_compute , nova]
   when: 
     - nova_controll == "enabled"
+

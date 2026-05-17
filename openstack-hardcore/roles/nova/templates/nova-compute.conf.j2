@@ -6,6 +6,7 @@ transport_url = rabbit://{{ rabbitmq_admin_user }}:{{ rabbitmq_admin_password }}
 my_ip = {{ host_ip }}
 use_neutron = True
 firewall_driver = nova.virt.firewall.NoopFirewallDriver
+enabled_apis = osapi_compute,metadata
 
 # Other optional Nova settings
 enabled_apis = osapi_compute,metadata
@@ -2994,6 +2995,16 @@ auth_type = password
 
 
 [libvirt]
+images_type = rbd
+images_rbd_pool = {{ ceph_cinder_pool }}
+images_rbd_ceph_conf = /etc/ceph/ceph.conf
+rbd_user = {{ rbd_username}}
+rbd_secret_uuid = {{ rbd_secret_uuid }}
+disk_cachemodes = "network=writeback"
+hw_disk_discard = unmap
+live_migration_flag = "VIR_MIGRATE_UNDEFINE_SOURCE,VIR_MIGRATE_PEER2PEER,VIR_MIGRATE_LIVE,VIR_MIGRATE_PERSIST_DEST,VIR_MIGRATE_TUNNELLED"
+
+
 #
 # Libvirt options allows cloud administrator to configure related
 # libvirt hypervisor driver to be used within an OpenStack deployment.
@@ -4467,7 +4478,7 @@ lock_path =  /var/lib/nova/tmp
 # A URL representing the messaging driver to use for notifications. If not set,
 # we fall back to the same configuration used for RPC (string value)
 # Deprecated group/name - [DEFAULT]/notification_transport_url
-transport_url = rabbit://admin:admin@172.16.1.2
+transport_url = rabbit://{{ rabbitmq_admin_user}}:{{ rabbitmq_admin_password}}@{{ rabbitmq_address }}
 
 # AMQP topic used for OpenStack notifications (list value)
 # Deprecated group/name - [rpc_notifier2]/topics
@@ -4788,6 +4799,13 @@ rabbit_password = {{ rabbitmq_admin_password }}
 # future release the default of this config will be change to True. For more
 # information, refer to the documentation. (boolean value)
 #report_in_placement = false
+
+[oslo_messaging_rabbit]
+rabbit_host = {{ rabbitmq_address }}
+rabbit_userid = {{ rabbitmq_admin_user }}
+rabbit_password = {{ rabbitmq_admin_password }}
+
+
 
 
 [placement]
@@ -5280,8 +5298,8 @@ region_name = RegionOne
 [service_user]
 auth_url = http://{{ keystone_address }}:5000
 auth_type = password
-project_domain_name = Default
-user_domain_name = Default
+project_domain_name = {{ openstack_domain }}
+user_domain_name = {{ openstack_domain }}
 region_name = RegionOne
 project_name = {{ openstack_project }}
 username = {{ nova_controller_user }}

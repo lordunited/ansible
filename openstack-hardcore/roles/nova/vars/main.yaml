@@ -26,3 +26,7 @@ glance_address: "172.16.1.2"
 controller_internal_address: "172.16.1.2"
 openstack_domain: "default"
 openstack_project: "services"
+ceph_cinder_pool: "rbd_openstack"
+ceph_glance_pool: "glance-pool"
+rbd_secret_uuid: "4b5c6d7e-8a9b-0c1d-2e3f-4a5b6c7d8e9f"
+rbd_username: nova
