@@ -6,7 +6,7 @@
   with_items:
     - glance
     - glance-api
-    - 
+    - glance-buckup
     - python3-glanceclient  
     - python3-rbd #rbd driver for glance
   tags: [ glance ]

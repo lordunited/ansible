@@ -6,3 +6,5 @@ cinder_keystone_password: "YourSecurePasswordHERE"
 cinder_db_password: "YourSecurePasswordHERE"
 cinder_db_address: "172.16.1.2"
 memcached_ip: 172.16.1.2
+cinder_rbd_user: cinder
+cinder_rbd_secret_uuid: 4b5c6d7e-8a9b-0c1d-2e3f-4a5b6c7d8e9f

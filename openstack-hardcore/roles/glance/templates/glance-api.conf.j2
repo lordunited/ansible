@@ -1,6 +1,6 @@
 [DEFAULT]
 transport_url = rabbit://{{ rabbitmq_username }}:{{ rabbitmq_password }}@{{ rabbitmq_address }}
-
+enabled_backends = ceph:rbd
 #
 # From glance.api
 #
@@ -3164,9 +3164,8 @@ backend = sqlalchemy
 
 
 [glance_store]
-
-stores = file,http
-default_store = file
+default_store = rbd
+stores = rbd, file
 ilesystem_store_datadir = /var/lib/glance/images/
 #
 # From glance.multi_store
@@ -6386,3 +6385,17 @@ flavor = keystone
 # (for example, uwsgi) sys.executable may not actually point to a python
 # interpreter and an alternative value must be set. (string value)
 #python_interpreter = <None>
+
+
+#enabled_backends = ceph:rbd
+#--->
+[ceph]
+#description = Ceph RBD backend for Glance Images
+volume_driver = glance.store._drivers.rbd.Store
+rbd_store_user = {{ glance_rbd_user }}
+rbd_store_pool = glance-images
+rbd_store_ceph_conf = /etc/ceph/ceph.conf
+rbd_store_chunk_size = 8
+rbd_store_secret_uuid = {{ glance_rbd_secret_uuid }}
+show_image_direct_url = True
+show_multiple_locations = True

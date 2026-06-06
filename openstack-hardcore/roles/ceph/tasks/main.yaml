@@ -4,6 +4,15 @@
   when: ceph == "enabled" 
   tags: [ ceph ]
 
+- name: Install Ceph client packages
+  apt:
+    name:
+      - ceph-common
+      - python3-rbd
+    state: present
+  tags: [  ceph ]
+
+
 - name: install rsync 
   apt:
     name: rsync
@@ -331,7 +340,7 @@
     - nova
   when: hostname == "ubuntu-01"
   run_once: true
-  tags: [  ceph_key ]
+  tags: [  ceph ]
 
 - name: Fetch ceph.conf to controller
   fetch:
@@ -342,27 +351,34 @@
   run_once: true
   tags: [  ceph ]
 
-- name: Fetch keyrings to controller
-  fetch:
-    src: "/etc/ceph/ceph.client.{{ item }}.keyring"
-    dest: "/tmp/ceph.client.{{ item }}.keyring"
-    flat: yes
+
+- name: Ensure keyring files exist (Create empty if missing)
+  file:
+    path: "/etc/ceph/ceph.client.{{ item }}.keyring"
+    state: touch
   loop:
     - cinder
     - glance
     - nova
-  when: hostname == "ubuntu-01"
   run_once: true
-  tags: [  ceph_key ]
-
-
-- name: Install Ceph client packages
-  apt:
-    name:
-      - ceph-common
-      - python3-rbd
-    state: present
   tags: [  ceph ]
+
+
+
+# - name: Fetch keyrings to controller
+#   fetch:
+#     src: "/etc/ceph/ceph.client.{{ item }}.keyring"
+#     dest: "/tmp/ceph.client.{{ item }}.keyring"
+#     flat: yes
+#   loop:
+#     - cinder
+#     - glance
+#     - nova
+#   when: inventory_hostname == groups['openstack'][0]  
+#   run_once: true
+#   tags: [  ceph_key ]
+
+
 
 - name: Create /etc/ceph directory
   file:
@@ -371,62 +387,62 @@
     mode: '0755'
   tags: [  ceph ]
   when: ceph == "enabled"
-
-- name: Copy Ceph configuration
-  synchronize:
-    src: /tmp/ceph.conf
-    dest: /etc/ceph/ceph.conf
-  delegate_to: "{{ groups['openstack'][0] }}"
   tags: [  ceph ]
 
 
-- name: Copy computes service configuration
+
+# - name: Fetch keyrings from the first host to controller /tmp
+#   fetch:
+#     src: "/etc/ceph/ceph.client.{{ item }}.keyring"
+#     dest: "/tmp/ceph.client.{{ item }}.keyring"
+#     flat: yes
+#   loop:
+#     - cinder
+#     - glance
+#     - nova
+#   when: inventory_hostname == groups['openstack'][0]
+#   tags: [ ceph_key ]
+
+- name:  Sync keyrings from controller /tmp to ALL OTHER hosts
   synchronize:
-    src: "/tmp/ceph.client.{{ item }}.keyring"
+    src: "/etc/ceph/ceph.client.{{ item }}.keyring"
     dest: "/etc/ceph/ceph.client.{{ item }}.keyring"
   loop:
     - cinder
     - glance
     - nova
   delegate_to: "{{ groups['openstack'][0] }}"
-  tags: [  ceph_key ]
+  when: 
+    - ceph == "enabled"
+    - inventory_hostname != groups['openstack'][0]
+  tags: [ ceph_key ]
+  ignore_errors: true
 
-- name: Deploy nova secret 
+
+
+- name: Deploy Libvirt secret XMLs for Cinder and Glance
   template:
     src: secret.xml.j2
-    dest: /tmp/secret.xml
-    owner: nova
-    group: nova
+    dest: "/tmp/secret-{{ item.service }}.xml"
+    owner: root
+    group: root
     mode: '0640'
-  notify: nova_compute_restart
-  tags: [  ceph_key ]
-  when: 
-    - nova_compute == "enabled"
-
-- name: Deploy nova secret 
-  template:
-    src: secret.xml.j2
-    dest: /tmp/secret.xml
-    owner: nova
-    group: nova
-    mode: '0640'
-  notify: nova_compute_restart
-  tags: [  ceph_key ]
-  when: 
-    - nova_control == "enabled"
+  loop:
+    - { service: 'cinder', uuid: "{{ cinder_rbd_secret_uuid }}" }
+    - { service: 'glance', uuid: "{{ glance_rbd_secret_uuid }}" }
+  when: (nova_compute == "enabled") or (nova_controll == "enabled")
+  tags: [ ceph_key ]
 
 
 
-- name: Set Libvirt Secret Value
+- name: Set Libvirt Secret Values Safely for each service
   shell: |
-    virsh secret-define --file /tmp/secret.xml
-    virsh secret-set-value --secret {{ rbd_secret_uuid }} --base64 $(cat /etc/ceph/client.nova.key)
-  when: nova_compute == "enabled"
-
-
-- name: Set Libvirt Secret Value
-  shell: |
-    virsh secret-define --file /tmp/secret.xml
-    virsh secret-set-value --secret {{ rbd_secret_uuid }} --base64 $(cat /etc/ceph/client.nova.key)
-  when: nova_controll == "enabled"
-
+    virsh secret-undefine {{ item.uuid }} 2>/dev/null || true
+    virsh secret-define --file /tmp/secret-{{ item.service }}.xml
+    SERVICE_KEY=$(awk '/key =/{print $3}' /etc/ceph/ceph.client.{{ item.service }}.keyring)
+    virsh secret-set-value --secret {{ item.uuid }} --base64 "$SERVICE_KEY"
+  loop:
+    - { service: 'cinder', uuid: "{{ cinder_rbd_secret_uuid }}" }
+    - { service: 'glance', uuid: "{{ glance_rbd_secret_uuid }}" }
+  when: (nova_compute == "enabled") or (nova_controll == "enabled")
+  tags: [ ceph_key ]

@@ -6,3 +6,5 @@ dashboard_username:  "admin"
 dashboard_password: "admin"
 ceph_osd_disks: 
   - { "ubuntu-04":"/dev/vdb" , "ubuntu-05":"/dev/vdb"}
+cinder_rbd_secret_uuid: 4b5c6d7e-8a9b-0c1d-2e3f-4a5b6c7d8e9f
+glance_rbd_secret_uuid: 9f8e7d6c-5b4a-3f2e-1d0c-9b8a7f6e5d4c
