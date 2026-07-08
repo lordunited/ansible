@@ -9,61 +9,112 @@
     - neutron-openvswitch-agent 
     - neutron-dhcp-agent
     - neutron-metadata-agent
-    - openvswitch-switch
     - neutron-l3-agent 
     - neutron-metadata-agent
-    - python3-neutronclient
-    - neutron-linuxbridge-agent
   tags: [ neutron ]
   when: 
     - neutron_controll == "enabled"
 
 
 
-- name: ----- install pre-requisite  compute plane -----
+- name: ----- install pre-requisite  compute  -----
   apt:
     name: "{{ item }}"
     state: present
     update_cache: yes
   with_items:
+    - neutron-openvswitch-agent 
     - openvswitch-switch
-    - neutron-openvswitch-agent
+    - neutron-common
+    - neutron-plugin-ml2
   tags: [ neutron ]
   when: 
     - neutron_compute == "enabled"
 
 
-- name: copy configuration neutron.conf
+- name: Copy Neutron configuration files on controller nodes
   template:
-    src: neutron.conf.j2
-    dest: /etc/neutron/neutron.conf
-  when: 
+    src: "{{ item }}"
+    dest: "/etc/neutron/{{ item | basename | regex_replace('\\.j2$', '') }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - dhcp_agent.ini.j2
+    - l3_agent.ini.j2
+    - metadata_agent.ini.j2
+    - ml2_conf.ini.j2
+    - neutron.conf.j2
+    - openvswitch_agent.ini.j2
+  when:
     - neutron_controll == "enabled"
-  tags: [ neutron , copy ]
+  tags:
+    - neutron
+ 
 
-- name: copy configuration ml2_conf
-  template:
-    src: ml2_conf.ini.j2
-    dest: /etc/neutron/plugins/ml2/ml2_conf.ini
-  when: 
-    - neutron_controll == "enabled"
-  tags: [ neutron ]
+- name: Copy openvswitch_agent configuration files on compute nodes
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "/etc/neutron/{{ item | basename | regex_replace('\\.j2$', '') }}"
+    owner: root
+    group: root
+    mode: '0644'
+  with_items:
+    - dhcp_agent.ini.j2
+    - ml2_conf.ini.j2
+    - openvswitch_agent.ini.j2
+  when:
+    - neutron_compute == "enabled"
+  tags:
+    - neutron
 
-- name: copy configuration openvswitch_agent.ini
-  template:
-    src: openvswitch_agent.ini.j2
-    dest: /etc/neutron/openvswitch_agent.ini
-  when: 
-    - neutron_controll == "enabled"
-  tags: [ neutron ]
 
+- name: Copy Neutron configuration files on compute nodes
+  ansible.builtin.template:
+    src: "{{ item }}"
+    dest: "/etc/neutron/neutron.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  with_items:
+    - neutron-compute.conf.j2
+  when:
+    - neutron_compute == "enabled"
+  tags:
+    - neutron
+
+- debug:
+    msg: "host={{ inventory_hostname }} neutron_compute={{ neutron_compute | default('UNDEF') }}"
+  tags: [neutron]
 
 - name: run sync db for neutron
   shell: |
     /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
   when: 
     - neutron_controll == "enabled"
-  notify: neutron_restart
   tags: [ neutron ]
 
 
+- name: restart neutron services
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:  
+  - neutron-server
+  - neutron-metadata-agent
+  - neutron-dhcp-agent
+  - neutron-l3-agent
+  when: 
+    - neutron_controll == "enabled"
+  tags: [ neutron ]
+
+
+- name: restart neutron services
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:  
+  - neutron-openvswitch-agent
+  when: 
+    - neutron_compute == "enabled"
+  tags: [ neutron ]

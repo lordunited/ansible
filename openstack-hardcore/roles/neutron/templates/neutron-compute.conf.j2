@@ -383,7 +383,7 @@ root_helper = "sudo /usr/bin/neutron-rootwrap /etc/neutron/rootwrap.conf"
 
 #allow_headers = X-Auth-Token,X-Identity-Status,X-Roles,X-Service-Catalog,X-User-Id,X-Tenant-Id,X-OpenStack-Request-ID
 [database]
-connection = mysql+pymysql://{{ neutron_user_db_user }}:{{ neutron_user_db_password }}@{{ neutron_db_address }}/neutron
+#connection = mysql+pymysql://{{ neutron_user_db_user }}:{{ neutron_user_db_password }}@{{ neutron_db_address }}/neutron
 
 
 #engine =

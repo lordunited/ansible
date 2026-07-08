@@ -1,0 +1,180 @@
+[DEFAULT]
+
+
+#metadata_proxy_socket = $state_path/metadata_proxy
+
+#metadata_proxy_user =
+
+#metadata_proxy_group =
+
+#auth_ca_cert = <None>
+
+nova_metadata_host = {{ nova_metadata_host }}
+
+nova_metadata_port = 8775
+
+#metadata_proxy_shared_secret =
+
+#nova_metadata_protocol = http
+
+#nova_metadata_insecure = false
+
+#nova_client_cert =
+
+#nova_client_priv_key =
+
+#metadata_proxy_socket_mode = deduce
+
+#
+#metadata_workers = <num_of_cpus> / 2
+
+#metadata_backlog = 4096
+
+#rpc_response_max_timeout = 600
+
+
+#debug = false
+
+#log_config_append = <None>
+
+#log_date_format = %Y-%m-%d %H:%M:%S
+
+#log_file = <None>
+
+#log_dir = <None>
+
+#watch_log_file = false
+
+#use_syslog = false
+
+#use_journal = false
+
+#syslog_log_facility = LOG_USER
+
+#use_json = false
+
+#use_stderr = false
+
+#use_eventlog = false
+
+#log_rotate_interval = 1
+
+#log_rotate_interval_type = days
+
+#max_logfile_count = 30
+
+#max_logfile_size_mb = 200
+
+#log_rotation_type = none
+
+#logging_context_format_string = %(asctime)s.%(msecs)03d %(process)d %(levelname)s %(name)s [%(global_request_id)s %(request_id)s %(user_identity)s] %(instance)s%(message)s
+
+#logging_default_format_string = %(asctime)s.%(msecs)03d %(process)d %(levelname)s %(name)s [-] %(instance)s%(message)s
+
+#logging_debug_format_suffix = %(funcName)s %(pathname)s:%(lineno)d
+
+#logging_exception_prefix = %(asctime)s.%(msecs)03d %(process)d ERROR %(name)s %(instance)s
+
+#logging_user_identity_format = %(user)s %(project)s %(domain)s %(system_scope)s %(user_domain)s %(project_domain)s
+
+#default_log_levels = amqp=WARN,amqplib=WARN,boto=WARN,qpid=WARN,sqlalchemy=WARN,suds=INFO,oslo.messaging=INFO,oslo_messaging=INFO,iso8601=WARN,requests.packages.urllib3.connectionpool=WARN,urllib3.connectionpool=WARN,websocket=WARN,requests.packages.urllib3.util.retry=WARN,urllib3.util.retry=WARN,keystonemiddleware=WARN,routes.middleware=WARN,stevedore=WARN,taskflow=WARN,keystoneauth=WARN,oslo.cache=INFO,oslo_policy=INFO,dogpile.core.dogpile=INFO
+
+#publish_errors = false
+
+#instance_format = "[instance: %(uuid)s] "
+
+#instance_uuid_format = "[instance: %(uuid)s] "
+
+#rate_limit_interval = 0
+
+#rate_limit_burst = 0
+
+#rate_limit_except_level = CRITICAL
+
+#fatal_deprecations = false
+[agent]
+
+
+#report_interval = 30
+
+#log_agent_heartbeats = false
+[cache]
+
+
+#config_prefix = cache.oslo
+
+#expiration_time = 600
+
+#backend = dogpile.cache.null
+
+#backend_argument =
+
+#proxies =
+
+#enabled = false
+
+#debug_cache_backend = false
+
+#memcache_servers = localhost:11211
+
+#memcache_dead_retry = 300
+
+#memcache_socket_timeout = 1.0
+
+#memcache_pool_maxsize = 10
+
+#memcache_pool_unused_timeout = 60
+
+#memcache_pool_connection_get_timeout = 10
+
+#memcache_pool_flush_on_reconnect = false
+
+#memcache_sasl_enabled = false
+
+#memcache_username = <None>
+
+#memcache_password = <None>
+
+#redis_server = localhost:6379
+
+#redis_username = <None>
+
+#redis_password = <None>
+
+#redis_sentinels = localhost:26379
+
+#redis_socket_timeout = 1.0
+
+#redis_sentinel_service_name = mymaster
+
+#tls_enabled = false
+
+#tls_cafile = <None>
+
+#tls_certfile = <None>
+
+#tls_keyfile = <None>
+
+#tls_allowed_ciphers = <None>
+
+#enable_socket_keepalive = false
+
+#socket_keepalive_idle = 1
+
+#socket_keepalive_interval = 1
+
+#socket_keepalive_count = 1
+
+#enable_retry_client = false
+
+#retry_attempts = 2
+
+#retry_delay = 0
+
+#hashclient_retry_attempts = 2
+
+#hashclient_retry_delay = 1
+
+#dead_timeout = 60
+
+#enforce_fips_mode = false

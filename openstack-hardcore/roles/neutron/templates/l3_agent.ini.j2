@@ -1,7 +1,65 @@
 [DEFAULT]
 
 
+#ovs_use_veth = false
+
+interface_driver = openvswitch
+
 #rpc_response_max_timeout = 600
+
+
+#agent_mode = legacy
+
+#metadata_port = 9697
+
+#handle_internal_only_routers = true
+
+#ipv6_gateway =
+
+#prefix_delegation_driver = dibbler
+
+#enable_metadata_proxy = true
+
+#metadata_access_mark = 0x1
+
+#external_ingress_mark = 0x2
+
+#radvd_user =
+
+#cleanup_on_shutdown = false
+
+#periodic_interval = 40
+
+#api_workers = <None>
+
+#rpc_workers = <None>
+
+#rpc_state_report_workers = 1
+
+#periodic_fuzzy_delay = 5
+
+#ha_confs_path = $state_path/ha_confs
+
+#ha_vrrp_auth_type = PASS
+
+#ha_vrrp_auth_password = <None>
+
+#ha_vrrp_advert_int = 2
+
+#
+#ha_keepalived_state_change_server_threads = (1 + <num_of_cpus>) / 2
+
+#ha_vrrp_health_check_interval = 0
+
+#pd_confs = $state_path/pd
+
+#vendor_pen = 8888
+
+#ra_confs = $state_path/ra
+
+#min_rtr_adv_interval = 30
+
+#max_rtr_adv_interval = 100
 
 
 #debug = false
@@ -66,57 +124,29 @@
 [agent]
 
 
-#minimize_polling = true
+#availability_zone = nova
 
-#ovsdb_monitor_respawn_interval = 30
 
-#tunnel_types =
+#report_interval = 30
 
-#vxlan_udp_port = 4789
+#log_agent_heartbeats = false
 
-#l2_population = false
-
-#arp_responder = false
-
-#dont_fragment = true
-
-#enable_distributed_routing = false
-
-#drop_flows_on_start = false
-
-#tunnel_csum = false
-
-#baremetal_smartnic = false
-
-#explicitly_egress_direct = false
 
 #extensions =
-[dhcp]
+[metadata_rate_limiting]
 
 
-#enable_ipv6 = true
+#rate_limit_enabled = false
 
-#dhcp_renewal_time = 0
+#ip_versions = 4
 
-#dhcp_rebinding_time = 0
-[metadata]
+#base_window_duration = 10
 
+#base_query_rate_limit = 10
 
-#auth_ca_cert = <None>
+#burst_window_duration = 10
 
-#nova_metadata_host = 127.0.0.1
-
-#nova_metadata_port = 8775
-
-#metadata_proxy_shared_secret =
-
-#nova_metadata_protocol = http
-
-#nova_metadata_insecure = false
-
-#nova_client_cert =
-
-#nova_client_priv_key =
+#burst_query_rate_limit = 10
 [network_log]
 
 
@@ -128,48 +158,6 @@
 [ovs]
 
 
-#integration_bridge = br-int
-
-#tunnel_bridge = br-tun
-
-#int_peer_patch_port = patch-tun
-
-#tun_peer_patch_port = patch-int
-
-#local_ip = <None>
-
-#bridge_mappings =
-
-#resource_provider_bandwidths =
-
-#resource_provider_hypervisors =
-
-#resource_provider_packet_processing_without_direction =
-
-#resource_provider_packet_processing_with_direction =
-
-#resource_provider_default_hypervisor = <None>
-
-#resource_provider_inventory_defaults = allocation_ratio:1.0,min_unit:1,reserved:0,step_size:1
-
-#resource_provider_packet_processing_inventory_defaults = allocation_ratio:1.0,min_unit:1,reserved:0,step_size:1
-
-#datapath_type = system
-
-#vhostuser_socket_dir = /var/run/openvswitch
-
-#of_listen_address = 127.0.0.1
-
-#of_listen_port = 6633
-
-#of_connect_timeout = 300
-
-#of_request_timeout = 300
-
-#of_inactivity_probe = 10
-
-#openflow_processed_per_port = false
-
 #ovsdb_connection = tcp:127.0.0.1:6640
 
 #ssl_key_file = <None>
@@ -179,13 +167,16 @@
 #ssl_ca_cert_file = <None>
 
 #ovsdb_debug = false
-[securitygroup]
 
+#ovsdb_timeout = 10
 
-firewall_driver = openvswitch
+#bridge_mac_table_size = 50000
 
-#enable_security_group = true
+#igmp_snooping_enable = false
 
-enable_ipset = true
+#igmp_flood = false
 
-#permitted_ethertypes =
+#igmp_flood_reports = true
+
+#igmp_flood_unregistered = false
+
