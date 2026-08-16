@@ -1,0 +1,21 @@
+network:
+  version: 2
+  ethernets:
+    ens3:
+      addresses:
+      - "172.16.1.2/24"
+      nameservers:
+        addresses:
+        - 8.8.8.8
+        - 1.1.1.1
+      gateway4: 172.16.1.1
+      dhcp4: false
+    ens8:
+      addresses:
+      - "172.17.1.2/24"
+      nameservers:
+        addresses:
+        - 8.8.8.8
+        - 1.1.1.1
+      gateway4: 172.17.1.1
+      dhcp4: false
