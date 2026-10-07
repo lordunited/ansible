@@ -125,11 +125,21 @@
     dest: /etc/netplan/50-cloud-init.yaml
   tags: [ neutron_plan ]
 
+- name: delete br nic
+  shell: ovs-vsctl del-br '{{ item }}'
+  with_items:
+  - br-lan 
+  - br-wan
+  tags: [ neutron_plan ]
+
 - name: configure bridge adaptors on physical nics
   shell: ovs-vsctl add-br br-lan && ovs-vsctl add-br br-wan
   tags: [ neutron_plan ]
 
-- name: noshut bridge adaptors ports 
-  shell: ovs-vsctl add-port br-lan  enp7s0 && ovs-vsctl br-wan enp8s0
-  tags: [ neutron_plan ]
+- name: Add network interfaces to OVS bridges
+  shell:
+    cmd: ovs-vsctl add-port {{ item.bridge }} {{ item.interface }}
+  loop:
+    - { bridge: br-lan, interface: ens3 }
+    - { bridge: br-wan, interface: ens8 }
 
