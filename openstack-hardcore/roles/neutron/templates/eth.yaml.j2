@@ -1,12 +1,15 @@
 network:
   version: 2
   ethernets:
-    eth0:
+    {{ neutron_provider_nic }}:
       dhcp4: false
   bridges:
-    br-ex:
-      interfaces: [eth0]
-      dhcp4: true
+    {{ neutron_provider_bridge }}:
+      interfaces:
+        - {{ neutron_provider_nic }}
+      openvswitch: {}
+      addresses:
+        - "{{ neutron_provider_ip }}/{{ neutron_provider_prefix }}"
+      dhcp4: false
       parameters:
         stp: false
-        forward-delay:  

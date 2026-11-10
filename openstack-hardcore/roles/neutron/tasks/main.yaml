@@ -1,145 +1,161 @@
-- name: ----- install pre-requisite  controll plane -----
+- name: Install Neutron controller packages
   apt:
-    name: "{{ item }}"
+    name:
+      - neutron-server
+      - neutron-plugin-ml2
+      - neutron-openvswitch-agent
+      - openvswitch-switch
+      - neutron-dhcp-agent
+      - neutron-metadata-agent
+      - neutron-l3-agent
     state: present
-    update_cache: yes
-  with_items:
-    - neutron-server
-    - neutron-plugin-ml2
-    - neutron-openvswitch-agent 
-    - neutron-dhcp-agent
-    - neutron-metadata-agent
-    - neutron-l3-agent 
-    - neutron-metadata-agent
-  tags: [ neutron ]
-  when: 
-    - neutron_controll == "enabled"
-
-
-
-- name: ----- install pre-requisite  compute  -----
-  apt:
-    name: "{{ item }}"
-    state: present
-    update_cache: yes
-  with_items:
-    - neutron-openvswitch-agent 
-    - openvswitch-switch
-    - neutron-common
-    - neutron-plugin-ml2
-  tags: [ neutron ]
-  when: 
-    - neutron_compute == "enabled"
-
-
-- name: Copy Neutron configuration files on controller nodes
-  template:
-    src: "{{ item }}"
-    dest: "/etc/neutron/{{ item | basename | regex_replace('\\.j2$', '') }}"
-    owner: root
-    group: root
-    mode: '0644'
-  loop:
-    - dhcp_agent.ini.j2
-    - l3_agent.ini.j2
-    - metadata_agent.ini.j2
-    - ml2_conf.ini.j2
-    - neutron.conf.j2
-    - openvswitch_agent.ini.j2
-  when:
-    - neutron_controll == "enabled"
-  tags:
-    - neutron
- 
-
-- name: Copy openvswitch_agent configuration files on compute nodes
-  ansible.builtin.template:
-    src: "{{ item }}"
-    dest: "/etc/neutron/{{ item | basename | regex_replace('\\.j2$', '') }}"
-    owner: root
-    group: root
-    mode: '0644'
-  with_items:
-    - dhcp_agent.ini.j2
-    - ml2_conf.ini.j2
-    - openvswitch_agent.ini.j2
-  when:
-    - neutron_compute == "enabled"
-  tags:
-    - neutron
-
-
-- name: Copy Neutron configuration files on compute nodes
-  ansible.builtin.template:
-    src: "{{ item }}"
-    dest: "/etc/neutron/neutron.conf"
-    owner: root
-    group: root
-    mode: '0644'
-  with_items:
-    - neutron-compute.conf.j2
-  when:
-    - neutron_compute == "enabled"
-  tags:
-    - neutron
-
-- debug:
-    msg: "host={{ inventory_hostname }} neutron_compute={{ neutron_compute | default('UNDEF') }}"
+    update_cache: true
+  when: neutron_controll == "enabled"
   tags: [neutron]
 
-- name: run sync db for neutron
-  shell: |
-    /bin/sh -c "neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head" neutron
-  when: 
-    - neutron_controll == "enabled"
-  tags: [ neutron ]
+- name: Install Neutron compute packages
+  apt:
+    name:
+      - neutron-openvswitch-agent
+      - openvswitch-switch
+      - neutron-common
+      - neutron-plugin-ml2
+    state: present
+    update_cache: true
+  when: neutron_compute == "enabled"
+  tags: [neutron]
 
+- name: Ensure Neutron runtime directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: neutron
+    group: neutron
+    mode: "0750"
+  loop:
+    - /var/lib/neutron/tmp
+    - /etc/neutron/plugins/ml2
+  when: neutron_controll == "enabled" or neutron_compute == "enabled"
+  tags: [neutron]
 
-- name: restart neutron services
+- name: Configure Neutron server and network-node agents
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: neutron
+    mode: "0640"
+  loop:
+    - { src: neutron.conf.j2, dest: /etc/neutron/neutron.conf }
+    - { src: ml2_conf.ini.j2, dest: /etc/neutron/plugins/ml2/ml2_conf.ini }
+    - { src: openvswitch_agent.ini.j2, dest: /etc/neutron/plugins/ml2/openvswitch_agent.ini }
+    - { src: dhcp_agent.ini.j2, dest: /etc/neutron/dhcp_agent.ini }
+    - { src: l3_agent.ini.j2, dest: /etc/neutron/l3_agent.ini }
+    - { src: metadata_agent.ini.j2, dest: /etc/neutron/metadata_agent.ini }
+  when: neutron_controll == "enabled"
+  tags: [neutron]
+
+- name: Configure Neutron on compute nodes
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: neutron
+    mode: "0640"
+  loop:
+    - { src: neutron-compute.conf.j2, dest: /etc/neutron/neutron.conf }
+    - { src: openvswitch_agent.ini.j2, dest: /etc/neutron/plugins/ml2/openvswitch_agent.ini }
+  when: neutron_compute == "enabled"
+  tags: [neutron]
+
+- name: Remove Neutron configs that the services do not read
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/neutron/ml2_conf.ini
+    - /etc/neutron/openvswitch_agent.ini
+    - /etc/neutron/neutron-compute.conf
+  when: neutron_controll == "enabled" or neutron_compute == "enabled"
+  tags: [neutron]
+
+- name: Ensure the provider bridge exists
+  command: ovs-vsctl --may-exist add-br {{ neutron_provider_bridge }}
+  when: neutron_controll == "enabled" or neutron_compute == "enabled"
+  tags: [neutron]
+
+- name: Sync the Neutron database
+  command: neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugins/ml2/ml2_conf.ini upgrade head
+  when: neutron_controll == "enabled"
+  tags: [neutron]
+
+- name: Restart Neutron controller services
   service:
     name: "{{ item }}"
     state: restarted
-  with_items:  
-  - neutron-server
-  - neutron-metadata-agent
-  - neutron-dhcp-agent
-  - neutron-l3-agent
-  when: 
-    - neutron_controll == "enabled"
-  tags: [ neutron ]
+    enabled: true
+  loop:
+    - neutron-server
+    - neutron-openvswitch-agent
+    - neutron-dhcp-agent
+    - neutron-l3-agent
+    - neutron-metadata-agent
+  when: neutron_controll == "enabled"
+  tags: [neutron]
 
-
-- name: restart neutron services
+- name: Stop network-node agents on compute nodes
   service:
     name: "{{ item }}"
-    state: restarted
-  with_items:  
-  - neutron-openvswitch-agent
-  when: 
-    - neutron_compute == "enabled"
-  tags: [ neutron ]
+    state: stopped
+    enabled: false
+  loop:
+    - neutron-server
+    - neutron-dhcp-agent
+    - neutron-l3-agent
+    - neutron-metadata-agent
+  failed_when: false
+  when: neutron_compute == "enabled"
+  tags: [neutron]
 
-- name: copy netplay on servers
+- name: Restart the Neutron Open vSwitch agent on compute nodes
+  service:
+    name: neutron-openvswitch-agent
+    state: restarted
+    enabled: true
+  when: neutron_compute == "enabled"
+  tags: [neutron]
+
+- name: Back up the current netplan
+  copy:
+    src: /etc/netplan/50-cloud-init.yaml
+    dest: /etc/netplan/50-cloud-init.yaml.bak
+    remote_src: true
+    force: false
+    mode: "0600"
+  when: neutron_provider_ip is defined
+  tags: [neutron_plan]
+
+- name: Configure management and provider netplan
   template:
     src: netplan.conf.j2
     dest: /etc/netplan/50-cloud-init.yaml
-  tags: [ neutron_plan ]
+    owner: root
+    group: root
+    mode: "0600"
+  when: neutron_provider_ip is defined
+  tags: [neutron_plan]
 
-- name: delete br nic
-  shell: ovs-vsctl del-br '{{ item }}'
-  with_items:
-  - br-lan 
-  - br-wan
-  tags: [ neutron_plan ]
+- name: Validate netplan
+  command: netplan generate
+  when: neutron_provider_ip is defined
+  tags: [neutron_plan]
 
-- name: configure bridge adaptors on physical nics
-  shell: ovs-vsctl add-br br-lan && ovs-vsctl add-br br-wan
-  tags: [ neutron_plan ]
+- name: Apply netplan
+  command: netplan apply
+  when: neutron_provider_ip is defined
+  tags: [neutron_plan]
 
-- name: Add network interfaces to OVS bridges
-  shell:
-    cmd: ovs-vsctl add-port {{ item.bridge }} {{ item.interface }}
-  loop:
-    - { bridge: br-lan, interface: ens3 }
-    - { bridge: br-wan, interface: ens8 }
-
+- name: Keep the provider bridge in secure fail mode
+  command: ovs-vsctl set-fail-mode {{ neutron_provider_bridge }} secure
+  when: neutron_provider_ip is defined
+  tags: [neutron_plan]

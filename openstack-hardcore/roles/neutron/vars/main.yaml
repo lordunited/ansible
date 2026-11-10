@@ -16,6 +16,48 @@ memcached_adddress: "172.16.1.2"
 openstack_domain: "default"
 openstack_project: "services"
 nova_controller_address: "172.16.1.2"
-nova_controller_user: "neutron"
+nova_controller_user: "nova"
 nova_controller_password: "YourSecurePasswordHERE"
 nova_metadata_host: "172.16.1.2"
+keystone_port: 5000
+memcached_port: 11211
+neutron_db_name: neutron
+neutron_core_plugin: ml2
+neutron_service_plugins: router
+neutron_auth_strategy: keystone
+neutron_auth_type: password
+neutron_bind_host: 0.0.0.0
+neutron_region: RegionOne
+neutron_lock_path: /var/lib/neutron/tmp
+neutron_root_helper: "sudo /usr/bin/neutron-rootwrap /etc/neutron/rootwrap.conf"
+neutron_type_drivers: "flat,vlan,vxlan"
+neutron_tenant_network_types: vxlan
+neutron_mechanism_drivers: openvswitch
+neutron_extension_drivers: port_security
+neutron_flat_networks: provider
+neutron_vni_ranges: "1:1000"
+neutron_enable_security_group: "true"
+neutron_enable_ipset: "true"
+neutron_tunnel_types: vxlan
+neutron_l2_population: "true"
+neutron_integration_bridge: br-int
+neutron_tunnel_bridge: br-tun
+neutron_physical_network: provider
+neutron_provider_bridge: br-wan
+neutron_firewall_driver: openvswitch
+neutron_interface_driver: openvswitch
+neutron_dhcp_driver: neutron.agent.linux.dhcp.Dnsmasq
+neutron_enable_isolated_metadata: "true"
+neutron_force_metadata: "true"
+neutron_l3_agent_mode: legacy
+nova_metadata_port: 8775
+nova_metadata_protocol: http
+neutron_metadata_proxy_shared_secret: METADATA_SECRET
+neutron_mgmt_nic: ens3
+neutron_mgmt_prefix: 24
+neutron_mgmt_gateway: 172.16.1.1
+neutron_provider_nic: ens8
+neutron_provider_prefix: 24
+neutron_dns_servers:
+  - 8.8.8.8
+  - 1.1.1.1

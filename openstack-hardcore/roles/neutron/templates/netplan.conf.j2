@@ -1,21 +1,26 @@
 network:
   version: 2
   ethernets:
-    ens3:
+    {{ neutron_mgmt_nic }}:
       addresses:
-      - "172.16.1.2/24"
+        - "{{ host_ip }}/{{ neutron_mgmt_prefix }}"
       nameservers:
         addresses:
-        - 8.8.8.8
-        - 1.1.1.1
-      gateway4: 172.16.1.1
+{% for dns in neutron_dns_servers %}
+          - {{ dns }}
+{% endfor %}
       dhcp4: false
-    ens8:
+      routes:
+        - to: default
+          via: {{ neutron_mgmt_gateway }}
+    {{ neutron_provider_nic }}:
+      dhcp4: false
+      dhcp6: false
+  bridges:
+    {{ neutron_provider_bridge }}:
+      interfaces:
+        - {{ neutron_provider_nic }}
+      openvswitch: {}
       addresses:
-      - "172.17.1.2/24"
-      nameservers:
-        addresses:
-        - 8.8.8.8
-        - 1.1.1.1
-      gateway4: 172.17.1.1
+        - "{{ neutron_provider_ip }}/{{ neutron_provider_prefix }}"
       dhcp4: false
